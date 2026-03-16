@@ -1,0 +1,369 @@
+==========================================
+Long Video Generation Experiments Started
+Date: Fri Mar 13 14:15:47 KST 2026
+GPU: 0
+Total Prompts: 48
+==========================================
+
+----------------------------------------
+[1/30] Processing prompt:
+Prompt: An action movie chase scene through narrow alleys, with a young woman in a leather jacket running and jumping over crates, her hair flying behind her as she glances back nervously. A pursuer in dark clothing follows closely, their footsteps echoing. Dynamic handheld camera movement, shot on RED camera with high contrast and fast-paced editing style.
+Start time: Fri Mar 13 14:15:47 KST 2026
+----------------------------------------
+Output file: ./output_20260313/long-t2v-1.3B_832x480_1_1_An_action_movie_chase_scene_through_narrow_alleys__20260313_141547.mp4
+[2026-03-13 14:15:51,754] INFO: Generation job args: Namespace(task='long-t2v-1.3B', size='832*480', frame_num=81, ckpt_dir='/home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B', offload_model=False, ulysses_size=1, ring_size=1, t5_fsdp=False, t5_cpu=False, dit_fsdp=False, save_file='./output_20260313/long-t2v-1.3B_832x480_1_1_An_action_movie_chase_scene_through_narrow_alleys__20260313_141547.mp4', src_video=None, src_mask=None, src_ref_images=None, prompt='An action movie chase scene through narrow alleys, with a young woman in a leather jacket running and jumping over crates, her hair flying behind her as she glances back nervously. A pursuer in dark clothing follows closely, their footsteps echoing. Dynamic handheld camera movement, shot on RED camera with high contrast and fast-paced editing style.', use_prompt_extend=False, prompt_extend_method='local_qwen', prompt_extend_model=None, prompt_extend_target_lang='zh', base_seed=5326379265442639272, image=None, first_frame=None, last_frame=None, sample_solver='unipc', sample_steps=50, sample_shift=5.0, sample_guide_scale=5.0, long_window_size=81, long_multiplier=4, long_overlap_start=41, long_steps=25, long_t_max=999, long_t_min=200)
+[2026-03-13 14:15:51,754] INFO: Generation model config: {'__name__': 'Config: Wan T2V 1.3B', 't5_model': 'umt5_xxl', 't5_dtype': torch.bfloat16, 'text_len': 512, 'param_dtype': torch.bfloat16, 'num_train_timesteps': 1000, 'sample_fps': 16, 'sample_neg_prompt': '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走', 't5_checkpoint': 'models_t5_umt5-xxl-enc-bf16.pth', 't5_tokenizer': 'google/umt5-xxl', 'vae_checkpoint': 'Wan2.1_VAE.pth', 'vae_stride': (4, 8, 8), 'patch_size': (1, 2, 2), 'dim': 1536, 'ffn_dim': 8960, 'freq_dim': 256, 'num_heads': 12, 'num_layers': 30, 'window_size': (-1, -1), 'qk_norm': True, 'cross_attn_norm': True, 'eps': 1e-06}
+[2026-03-13 14:15:51,754] INFO: Input prompt: An action movie chase scene through narrow alleys, with a young woman in a leather jacket running and jumping over crates, her hair flying behind her as she glances back nervously. A pursuer in dark clothing follows closely, their footsteps echoing. Dynamic handheld camera movement, shot on RED camera with high contrast and fast-paced editing style.
+[2026-03-13 14:15:51,754] INFO: Creating WanT2VLong pipeline.
+[2026-03-13 14:16:39,641] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/models_t5_umt5-xxl-enc-bf16.pth
+[2026-03-13 14:16:49,805] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/Wan2.1_VAE.pth
+[2026-03-13 14:16:50,387] INFO: Creating WanModel from /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B
+[2026-03-13 14:16:51,887] INFO: Generating long video (window_size=81, multiplier=4, overlap_start=41, total_frames=201) ...
+[2026-03-13 14:16:51,888] INFO: [LongVideo] window_size=81, multiplier=4, overlap_start=41px (10lat), total_frames=201, num_windows=4, T_total_lat=51, T_win_lat=21, overlap=11lat (44px)
+[2026-03-13 14:16:51,888] INFO: [LongVideo] window starts (latent): [0, 10, 20, 30]
+SyncTweedies:   0%|          | 0/25 [00:00<?, ?it/s]SyncTweedies:   0%|          | 0/25 [00:06<?, ?it/s]
+Traceback (most recent call last):
+  File "/home/bispl_02/jangho/wan/generate.py", line 714, in <module>
+    generate(args)
+  File "/home/bispl_02/jangho/wan/generate.py", line 440, in generate
+    video = wan_long.generate_long(
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bispl_02/jangho/wan/wan/long_video.py", line 463, in generate_long
+    x0_full = _aggregate_x0(
+              ^^^^^^^^^^^^^^
+  File "/home/bispl_02/jangho/wan/wan/long_video.py", line 123, in _aggregate_x0
+    buf = torch.zeros(C, T_total_lat, H, W, device=device,
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.AcceleratorError: CUDA error: invalid device ordinal
+GPU device may be out of range, do you have enough GPUs?
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+
+End time: Fri Mar 13 14:17:02 KST 2026
+✗ Failed to process prompt 1 (exit code: 1)
+Continuing with next prompt...
+
+----------------------------------------
+[2/30] Processing prompt:
+Prompt: A romantic drama scene of two people meeting for the first time in a crowded café. A woman in a red dress sits at a window table, nervously playing with her coffee cup. A man approaches, removes his coat, and sits across from her. They make eye contact, smile shyly, and begin talking. Close-ups of their expressions showing curiosity and attraction. Warm, soft lighting, shot on 35mm film with shallow depth of field and emotional color grading.
+Start time: Fri Mar 13 14:17:04 KST 2026
+----------------------------------------
+Output file: ./output_20260313/long-t2v-1.3B_832x480_1_1_A_romantic_drama_scene_of_two_people_meeting_for_t_20260313_141704.mp4
+[2026-03-13 14:17:09,388] INFO: Generation job args: Namespace(task='long-t2v-1.3B', size='832*480', frame_num=81, ckpt_dir='/home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B', offload_model=False, ulysses_size=1, ring_size=1, t5_fsdp=False, t5_cpu=False, dit_fsdp=False, save_file='./output_20260313/long-t2v-1.3B_832x480_1_1_A_romantic_drama_scene_of_two_people_meeting_for_t_20260313_141704.mp4', src_video=None, src_mask=None, src_ref_images=None, prompt='A romantic drama scene of two people meeting for the first time in a crowded café. A woman in a red dress sits at a window table, nervously playing with her coffee cup. A man approaches, removes his coat, and sits across from her. They make eye contact, smile shyly, and begin talking. Close-ups of their expressions showing curiosity and attraction. Warm, soft lighting, shot on 35mm film with shallow depth of field and emotional color grading.', use_prompt_extend=False, prompt_extend_method='local_qwen', prompt_extend_model=None, prompt_extend_target_lang='zh', base_seed=5336720346067500726, image=None, first_frame=None, last_frame=None, sample_solver='unipc', sample_steps=50, sample_shift=5.0, sample_guide_scale=5.0, long_window_size=81, long_multiplier=4, long_overlap_start=41, long_steps=25, long_t_max=999, long_t_min=200)
+[2026-03-13 14:17:09,388] INFO: Generation model config: {'__name__': 'Config: Wan T2V 1.3B', 't5_model': 'umt5_xxl', 't5_dtype': torch.bfloat16, 'text_len': 512, 'param_dtype': torch.bfloat16, 'num_train_timesteps': 1000, 'sample_fps': 16, 'sample_neg_prompt': '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走', 't5_checkpoint': 'models_t5_umt5-xxl-enc-bf16.pth', 't5_tokenizer': 'google/umt5-xxl', 'vae_checkpoint': 'Wan2.1_VAE.pth', 'vae_stride': (4, 8, 8), 'patch_size': (1, 2, 2), 'dim': 1536, 'ffn_dim': 8960, 'freq_dim': 256, 'num_heads': 12, 'num_layers': 30, 'window_size': (-1, -1), 'qk_norm': True, 'cross_attn_norm': True, 'eps': 1e-06}
+[2026-03-13 14:17:09,388] INFO: Input prompt: A romantic drama scene of two people meeting for the first time in a crowded café. A woman in a red dress sits at a window table, nervously playing with her coffee cup. A man approaches, removes his coat, and sits across from her. They make eye contact, smile shyly, and begin talking. Close-ups of their expressions showing curiosity and attraction. Warm, soft lighting, shot on 35mm film with shallow depth of field and emotional color grading.
+[2026-03-13 14:17:09,388] INFO: Creating WanT2VLong pipeline.
+[2026-03-13 14:17:57,485] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/models_t5_umt5-xxl-enc-bf16.pth
+[2026-03-13 14:18:08,247] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/Wan2.1_VAE.pth
+[2026-03-13 14:18:08,724] INFO: Creating WanModel from /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B
+[2026-03-13 14:18:10,371] INFO: Generating long video (window_size=81, multiplier=4, overlap_start=41, total_frames=201) ...
+[2026-03-13 14:18:10,371] INFO: [LongVideo] window_size=81, multiplier=4, overlap_start=41px (10lat), total_frames=201, num_windows=4, T_total_lat=51, T_win_lat=21, overlap=11lat (44px)
+[2026-03-13 14:18:10,371] INFO: [LongVideo] window starts (latent): [0, 10, 20, 30]
+SyncTweedies:   0%|          | 0/25 [00:00<?, ?it/s]SyncTweedies:   0%|          | 0/25 [00:06<?, ?it/s]
+Traceback (most recent call last):
+  File "/home/bispl_02/jangho/wan/generate.py", line 714, in <module>
+    generate(args)
+  File "/home/bispl_02/jangho/wan/generate.py", line 440, in generate
+    video = wan_long.generate_long(
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bispl_02/jangho/wan/wan/long_video.py", line 463, in generate_long
+    x0_full = _aggregate_x0(
+              ^^^^^^^^^^^^^^
+  File "/home/bispl_02/jangho/wan/wan/long_video.py", line 123, in _aggregate_x0
+    buf = torch.zeros(C, T_total_lat, H, W, device=device,
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.AcceleratorError: CUDA error: invalid device ordinal
+GPU device may be out of range, do you have enough GPUs?
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+
+End time: Fri Mar 13 14:18:21 KST 2026
+✗ Failed to process prompt 2 (exit code: 1)
+Continuing with next prompt...
+
+----------------------------------------
+[3/30] Processing prompt:
+Prompt: A thriller movie scene of a detective in a trench coat investigating a crime scene at night. He kneels down, picks up evidence with gloved hands, examines it under a flashlight beam. His face shows concentration and concern. He stands up, looks around suspiciously, and walks slowly through the dark alley. Tense, slow camera push-in, shot on Arri Alexa with high contrast and desaturated colors.
+Start time: Fri Mar 13 14:18:23 KST 2026
+----------------------------------------
+Output file: ./output_20260313/long-t2v-1.3B_832x480_1_1_A_thriller_movie_scene_of_a_detective_in_a_trench__20260313_141823.mp4
+[2026-03-13 14:18:28,017] INFO: Generation job args: Namespace(task='long-t2v-1.3B', size='832*480', frame_num=81, ckpt_dir='/home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B', offload_model=False, ulysses_size=1, ring_size=1, t5_fsdp=False, t5_cpu=False, dit_fsdp=False, save_file='./output_20260313/long-t2v-1.3B_832x480_1_1_A_thriller_movie_scene_of_a_detective_in_a_trench__20260313_141823.mp4', src_video=None, src_mask=None, src_ref_images=None, prompt='A thriller movie scene of a detective in a trench coat investigating a crime scene at night. He kneels down, picks up evidence with gloved hands, examines it under a flashlight beam. His face shows concentration and concern. He stands up, looks around suspiciously, and walks slowly through the dark alley. Tense, slow camera push-in, shot on Arri Alexa with high contrast and desaturated colors.', use_prompt_extend=False, prompt_extend_method='local_qwen', prompt_extend_model=None, prompt_extend_target_lang='zh', base_seed=1376798825570486097, image=None, first_frame=None, last_frame=None, sample_solver='unipc', sample_steps=50, sample_shift=5.0, sample_guide_scale=5.0, long_window_size=81, long_multiplier=4, long_overlap_start=41, long_steps=25, long_t_max=999, long_t_min=200)
+[2026-03-13 14:18:28,017] INFO: Generation model config: {'__name__': 'Config: Wan T2V 1.3B', 't5_model': 'umt5_xxl', 't5_dtype': torch.bfloat16, 'text_len': 512, 'param_dtype': torch.bfloat16, 'num_train_timesteps': 1000, 'sample_fps': 16, 'sample_neg_prompt': '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走', 't5_checkpoint': 'models_t5_umt5-xxl-enc-bf16.pth', 't5_tokenizer': 'google/umt5-xxl', 'vae_checkpoint': 'Wan2.1_VAE.pth', 'vae_stride': (4, 8, 8), 'patch_size': (1, 2, 2), 'dim': 1536, 'ffn_dim': 8960, 'freq_dim': 256, 'num_heads': 12, 'num_layers': 30, 'window_size': (-1, -1), 'qk_norm': True, 'cross_attn_norm': True, 'eps': 1e-06}
+[2026-03-13 14:18:28,017] INFO: Input prompt: A thriller movie scene of a detective in a trench coat investigating a crime scene at night. He kneels down, picks up evidence with gloved hands, examines it under a flashlight beam. His face shows concentration and concern. He stands up, looks around suspiciously, and walks slowly through the dark alley. Tense, slow camera push-in, shot on Arri Alexa with high contrast and desaturated colors.
+[2026-03-13 14:18:28,017] INFO: Creating WanT2VLong pipeline.
+==========================================
+Long Video Generation Experiments Started
+Date: Fri Mar 13 14:21:02 KST 2026
+GPU: 0
+Total Prompts: 48
+==========================================
+
+----------------------------------------
+[1/30] Processing prompt:
+Prompt: An action movie chase scene through narrow alleys, with a young woman in a leather jacket running and jumping over crates, her hair flying behind her as she glances back nervously. A pursuer in dark clothing follows closely, their footsteps echoing. Dynamic handheld camera movement, shot on RED camera with high contrast and fast-paced editing style.
+Start time: Fri Mar 13 14:21:02 KST 2026
+----------------------------------------
+Output file: ./output_20260313/long-t2v-1.3B_832x480_1_1_An_action_movie_chase_scene_through_narrow_alleys__20260313_142102.mp4
+[2026-03-13 14:21:07,326] INFO: Generation job args: Namespace(task='long-t2v-1.3B', size='832*480', frame_num=81, ckpt_dir='/home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B', offload_model=False, ulysses_size=1, ring_size=1, t5_fsdp=False, t5_cpu=False, dit_fsdp=False, save_file='./output_20260313/long-t2v-1.3B_832x480_1_1_An_action_movie_chase_scene_through_narrow_alleys__20260313_142102.mp4', src_video=None, src_mask=None, src_ref_images=None, prompt='An action movie chase scene through narrow alleys, with a young woman in a leather jacket running and jumping over crates, her hair flying behind her as she glances back nervously. A pursuer in dark clothing follows closely, their footsteps echoing. Dynamic handheld camera movement, shot on RED camera with high contrast and fast-paced editing style.', use_prompt_extend=False, prompt_extend_method='local_qwen', prompt_extend_model=None, prompt_extend_target_lang='zh', base_seed=3101369574608622994, image=None, first_frame=None, last_frame=None, sample_solver='unipc', sample_steps=50, sample_shift=5.0, sample_guide_scale=5.0, long_window_size=81, long_multiplier=4, long_overlap_start=41, long_steps=25, long_t_max=999, long_t_min=200)
+[2026-03-13 14:21:07,326] INFO: Generation model config: {'__name__': 'Config: Wan T2V 1.3B', 't5_model': 'umt5_xxl', 't5_dtype': torch.bfloat16, 'text_len': 512, 'param_dtype': torch.bfloat16, 'num_train_timesteps': 1000, 'sample_fps': 16, 'sample_neg_prompt': '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走', 't5_checkpoint': 'models_t5_umt5-xxl-enc-bf16.pth', 't5_tokenizer': 'google/umt5-xxl', 'vae_checkpoint': 'Wan2.1_VAE.pth', 'vae_stride': (4, 8, 8), 'patch_size': (1, 2, 2), 'dim': 1536, 'ffn_dim': 8960, 'freq_dim': 256, 'num_heads': 12, 'num_layers': 30, 'window_size': (-1, -1), 'qk_norm': True, 'cross_attn_norm': True, 'eps': 1e-06}
+[2026-03-13 14:21:07,326] INFO: Input prompt: An action movie chase scene through narrow alleys, with a young woman in a leather jacket running and jumping over crates, her hair flying behind her as she glances back nervously. A pursuer in dark clothing follows closely, their footsteps echoing. Dynamic handheld camera movement, shot on RED camera with high contrast and fast-paced editing style.
+[2026-03-13 14:21:07,326] INFO: Creating WanT2VLong pipeline.
+[2026-03-13 14:22:04,935] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/models_t5_umt5-xxl-enc-bf16.pth
+[2026-03-13 14:22:15,592] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/Wan2.1_VAE.pth
+[2026-03-13 14:22:16,045] INFO: Creating WanModel from /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B
+[2026-03-13 14:22:17,651] INFO: Generating long video (window_size=81, multiplier=4, overlap_start=41, total_frames=201) ...
+[2026-03-13 14:22:17,651] INFO: [LongVideo] window_size=81, multiplier=4, overlap_start=41px (10lat), total_frames=201, num_windows=4, T_total_lat=51, T_win_lat=21, overlap=11lat (44px)
+[2026-03-13 14:22:17,651] INFO: [LongVideo] window starts (latent): [0, 10, 20, 30]
+SyncTweedies:   0%|          | 0/25 [00:00<?, ?it/s]SyncTweedies:   0%|          | 0/25 [00:06<?, ?it/s]
+Traceback (most recent call last):
+  File "/home/bispl_02/jangho/wan/generate.py", line 714, in <module>
+    generate(args)
+  File "/home/bispl_02/jangho/wan/generate.py", line 440, in generate
+    video = wan_long.generate_long(
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bispl_02/jangho/wan/wan/long_video.py", line 463, in generate_long
+    x0_full = _aggregate_x0(
+              ^^^^^^^^^^^^^^
+  File "/home/bispl_02/jangho/wan/wan/long_video.py", line 123, in _aggregate_x0
+    buf = torch.zeros(C, T_total_lat, H, W, device=device,
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.AcceleratorError: CUDA error: invalid device ordinal
+GPU device may be out of range, do you have enough GPUs?
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+
+End time: Fri Mar 13 14:22:28 KST 2026
+✗ Failed to process prompt 1 (exit code: 1)
+Continuing with next prompt...
+
+----------------------------------------
+[2/30] Processing prompt:
+Prompt: A romantic drama scene of two people meeting for the first time in a crowded café. A woman in a red dress sits at a window table, nervously playing with her coffee cup. A man approaches, removes his coat, and sits across from her. They make eye contact, smile shyly, and begin talking. Close-ups of their expressions showing curiosity and attraction. Warm, soft lighting, shot on 35mm film with shallow depth of field and emotional color grading.
+Start time: Fri Mar 13 14:22:30 KST 2026
+----------------------------------------
+Output file: ./output_20260313/long-t2v-1.3B_832x480_1_1_A_romantic_drama_scene_of_two_people_meeting_for_t_20260313_142230.mp4
+[2026-03-13 14:22:35,429] INFO: Generation job args: Namespace(task='long-t2v-1.3B', size='832*480', frame_num=81, ckpt_dir='/home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B', offload_model=False, ulysses_size=1, ring_size=1, t5_fsdp=False, t5_cpu=False, dit_fsdp=False, save_file='./output_20260313/long-t2v-1.3B_832x480_1_1_A_romantic_drama_scene_of_two_people_meeting_for_t_20260313_142230.mp4', src_video=None, src_mask=None, src_ref_images=None, prompt='A romantic drama scene of two people meeting for the first time in a crowded café. A woman in a red dress sits at a window table, nervously playing with her coffee cup. A man approaches, removes his coat, and sits across from her. They make eye contact, smile shyly, and begin talking. Close-ups of their expressions showing curiosity and attraction. Warm, soft lighting, shot on 35mm film with shallow depth of field and emotional color grading.', use_prompt_extend=False, prompt_extend_method='local_qwen', prompt_extend_model=None, prompt_extend_target_lang='zh', base_seed=9127543072976571226, image=None, first_frame=None, last_frame=None, sample_solver='unipc', sample_steps=50, sample_shift=5.0, sample_guide_scale=5.0, long_window_size=81, long_multiplier=4, long_overlap_start=41, long_steps=25, long_t_max=999, long_t_min=200)
+[2026-03-13 14:22:35,430] INFO: Generation model config: {'__name__': 'Config: Wan T2V 1.3B', 't5_model': 'umt5_xxl', 't5_dtype': torch.bfloat16, 'text_len': 512, 'param_dtype': torch.bfloat16, 'num_train_timesteps': 1000, 'sample_fps': 16, 'sample_neg_prompt': '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走', 't5_checkpoint': 'models_t5_umt5-xxl-enc-bf16.pth', 't5_tokenizer': 'google/umt5-xxl', 'vae_checkpoint': 'Wan2.1_VAE.pth', 'vae_stride': (4, 8, 8), 'patch_size': (1, 2, 2), 'dim': 1536, 'ffn_dim': 8960, 'freq_dim': 256, 'num_heads': 12, 'num_layers': 30, 'window_size': (-1, -1), 'qk_norm': True, 'cross_attn_norm': True, 'eps': 1e-06}
+[2026-03-13 14:22:35,430] INFO: Input prompt: A romantic drama scene of two people meeting for the first time in a crowded café. A woman in a red dress sits at a window table, nervously playing with her coffee cup. A man approaches, removes his coat, and sits across from her. They make eye contact, smile shyly, and begin talking. Close-ups of their expressions showing curiosity and attraction. Warm, soft lighting, shot on 35mm film with shallow depth of field and emotional color grading.
+[2026-03-13 14:22:35,430] INFO: Creating WanT2VLong pipeline.
+[2026-03-13 14:23:25,589] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/models_t5_umt5-xxl-enc-bf16.pth
+[2026-03-13 14:23:36,018] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/Wan2.1_VAE.pth
+[2026-03-13 14:23:36,477] INFO: Creating WanModel from /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B
+[2026-03-13 14:23:38,029] INFO: Generating long video (window_size=81, multiplier=4, overlap_start=41, total_frames=201) ...
+[2026-03-13 14:23:38,029] INFO: [LongVideo] window_size=81, multiplier=4, overlap_start=41px (10lat), total_frames=201, num_windows=4, T_total_lat=51, T_win_lat=21, overlap=11lat (44px)
+[2026-03-13 14:23:38,029] INFO: [LongVideo] window starts (latent): [0, 10, 20, 30]
+SyncTweedies:   0%|          | 0/25 [00:00<?, ?it/s]SyncTweedies:   0%|          | 0/25 [00:06<?, ?it/s]
+Traceback (most recent call last):
+  File "/home/bispl_02/jangho/wan/generate.py", line 714, in <module>
+    generate(args)
+  File "/home/bispl_02/jangho/wan/generate.py", line 440, in generate
+    video = wan_long.generate_long(
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bispl_02/jangho/wan/wan/long_video.py", line 463, in generate_long
+    x0_full = _aggregate_x0(
+              ^^^^^^^^^^^^^^
+  File "/home/bispl_02/jangho/wan/wan/long_video.py", line 123, in _aggregate_x0
+    buf = torch.zeros(C, T_total_lat, H, W, device=device,
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.AcceleratorError: CUDA error: invalid device ordinal
+GPU device may be out of range, do you have enough GPUs?
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+
+End time: Fri Mar 13 14:23:49 KST 2026
+✗ Failed to process prompt 2 (exit code: 1)
+Continuing with next prompt...
+
+----------------------------------------
+[3/30] Processing prompt:
+Prompt: A thriller movie scene of a detective in a trench coat investigating a crime scene at night. He kneels down, picks up evidence with gloved hands, examines it under a flashlight beam. His face shows concentration and concern. He stands up, looks around suspiciously, and walks slowly through the dark alley. Tense, slow camera push-in, shot on Arri Alexa with high contrast and desaturated colors.
+Start time: Fri Mar 13 14:23:51 KST 2026
+----------------------------------------
+Output file: ./output_20260313/long-t2v-1.3B_832x480_1_1_A_thriller_movie_scene_of_a_detective_in_a_trench__20260313_142351.mp4
+[2026-03-13 14:23:55,495] INFO: Generation job args: Namespace(task='long-t2v-1.3B', size='832*480', frame_num=81, ckpt_dir='/home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B', offload_model=False, ulysses_size=1, ring_size=1, t5_fsdp=False, t5_cpu=False, dit_fsdp=False, save_file='./output_20260313/long-t2v-1.3B_832x480_1_1_A_thriller_movie_scene_of_a_detective_in_a_trench__20260313_142351.mp4', src_video=None, src_mask=None, src_ref_images=None, prompt='A thriller movie scene of a detective in a trench coat investigating a crime scene at night. He kneels down, picks up evidence with gloved hands, examines it under a flashlight beam. His face shows concentration and concern. He stands up, looks around suspiciously, and walks slowly through the dark alley. Tense, slow camera push-in, shot on Arri Alexa with high contrast and desaturated colors.', use_prompt_extend=False, prompt_extend_method='local_qwen', prompt_extend_model=None, prompt_extend_target_lang='zh', base_seed=5065094015611144732, image=None, first_frame=None, last_frame=None, sample_solver='unipc', sample_steps=50, sample_shift=5.0, sample_guide_scale=5.0, long_window_size=81, long_multiplier=4, long_overlap_start=41, long_steps=25, long_t_max=999, long_t_min=200)
+[2026-03-13 14:23:55,495] INFO: Generation model config: {'__name__': 'Config: Wan T2V 1.3B', 't5_model': 'umt5_xxl', 't5_dtype': torch.bfloat16, 'text_len': 512, 'param_dtype': torch.bfloat16, 'num_train_timesteps': 1000, 'sample_fps': 16, 'sample_neg_prompt': '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走', 't5_checkpoint': 'models_t5_umt5-xxl-enc-bf16.pth', 't5_tokenizer': 'google/umt5-xxl', 'vae_checkpoint': 'Wan2.1_VAE.pth', 'vae_stride': (4, 8, 8), 'patch_size': (1, 2, 2), 'dim': 1536, 'ffn_dim': 8960, 'freq_dim': 256, 'num_heads': 12, 'num_layers': 30, 'window_size': (-1, -1), 'qk_norm': True, 'cross_attn_norm': True, 'eps': 1e-06}
+[2026-03-13 14:23:55,495] INFO: Input prompt: A thriller movie scene of a detective in a trench coat investigating a crime scene at night. He kneels down, picks up evidence with gloved hands, examines it under a flashlight beam. His face shows concentration and concern. He stands up, looks around suspiciously, and walks slowly through the dark alley. Tense, slow camera push-in, shot on Arri Alexa with high contrast and desaturated colors.
+[2026-03-13 14:23:55,495] INFO: Creating WanT2VLong pipeline.
+
+==========================================
+⚠️  Interrupted by user (Ctrl+C)
+Stopping current process...
+Interrupted at: Fri Mar 13 14:24:32 KST 2026
+Last processed prompt: 3/30
+==========================================
+==========================================
+Long Video Generation Experiments Started
+Date: Fri Mar 13 14:25:16 KST 2026
+GPU: 0
+Total Prompts: 48
+==========================================
+
+----------------------------------------
+[1/30] Processing prompt:
+Prompt: An action movie chase scene through narrow alleys, with a young woman in a leather jacket running and jumping over crates, her hair flying behind her as she glances back nervously. A pursuer in dark clothing follows closely, their footsteps echoing. Dynamic handheld camera movement, shot on RED camera with high contrast and fast-paced editing style.
+Start time: Fri Mar 13 14:25:16 KST 2026
+----------------------------------------
+Output file: ./output_20260313/long-t2v-1.3B_832x480_1_1_An_action_movie_chase_scene_through_narrow_alleys__20260313_142516.mp4
+[2026-03-13 14:25:21,054] INFO: Generation job args: Namespace(task='long-t2v-1.3B', size='832*480', frame_num=81, ckpt_dir='/home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B', offload_model=False, ulysses_size=1, ring_size=1, t5_fsdp=False, t5_cpu=False, dit_fsdp=False, save_file='./output_20260313/long-t2v-1.3B_832x480_1_1_An_action_movie_chase_scene_through_narrow_alleys__20260313_142516.mp4', src_video=None, src_mask=None, src_ref_images=None, prompt='An action movie chase scene through narrow alleys, with a young woman in a leather jacket running and jumping over crates, her hair flying behind her as she glances back nervously. A pursuer in dark clothing follows closely, their footsteps echoing. Dynamic handheld camera movement, shot on RED camera with high contrast and fast-paced editing style.', use_prompt_extend=False, prompt_extend_method='local_qwen', prompt_extend_model=None, prompt_extend_target_lang='zh', base_seed=8760540818164940390, image=None, first_frame=None, last_frame=None, sample_solver='unipc', sample_steps=50, sample_shift=5.0, sample_guide_scale=5.0, long_window_size=81, long_multiplier=4, long_overlap_start=41, long_steps=25, long_t_max=999, long_t_min=200)
+[2026-03-13 14:25:21,055] INFO: Generation model config: {'__name__': 'Config: Wan T2V 1.3B', 't5_model': 'umt5_xxl', 't5_dtype': torch.bfloat16, 'text_len': 512, 'param_dtype': torch.bfloat16, 'num_train_timesteps': 1000, 'sample_fps': 16, 'sample_neg_prompt': '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走', 't5_checkpoint': 'models_t5_umt5-xxl-enc-bf16.pth', 't5_tokenizer': 'google/umt5-xxl', 'vae_checkpoint': 'Wan2.1_VAE.pth', 'vae_stride': (4, 8, 8), 'patch_size': (1, 2, 2), 'dim': 1536, 'ffn_dim': 8960, 'freq_dim': 256, 'num_heads': 12, 'num_layers': 30, 'window_size': (-1, -1), 'qk_norm': True, 'cross_attn_norm': True, 'eps': 1e-06}
+[2026-03-13 14:25:21,055] INFO: Input prompt: An action movie chase scene through narrow alleys, with a young woman in a leather jacket running and jumping over crates, her hair flying behind her as she glances back nervously. A pursuer in dark clothing follows closely, their footsteps echoing. Dynamic handheld camera movement, shot on RED camera with high contrast and fast-paced editing style.
+[2026-03-13 14:25:21,055] INFO: Creating WanT2VLong pipeline.
+[2026-03-13 14:26:09,609] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/models_t5_umt5-xxl-enc-bf16.pth
+[2026-03-13 14:26:21,175] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/Wan2.1_VAE.pth
+[2026-03-13 14:26:21,751] INFO: Creating WanModel from /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B
+[2026-03-13 14:26:24,101] INFO: Generating long video (window_size=81, multiplier=4, overlap_start=41, total_frames=201) ...
+[2026-03-13 14:26:24,101] INFO: [LongVideo] window_size=81, multiplier=4, overlap_start=41px (10lat), total_frames=201, num_windows=4, T_total_lat=51, T_win_lat=21, overlap=11lat (44px)
+[2026-03-13 14:26:24,101] INFO: [LongVideo] window starts (latent): [0, 10, 20, 30]
+SyncTweedies:   0%|          | 0/25 [00:00<?, ?it/s]SyncTweedies:   0%|          | 0/25 [00:06<?, ?it/s]
+Traceback (most recent call last):
+  File "/home/bispl_02/jangho/wan/generate.py", line 714, in <module>
+    generate(args)
+  File "/home/bispl_02/jangho/wan/generate.py", line 440, in generate
+    video = wan_long.generate_long(
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bispl_02/jangho/wan/wan/long_video.py", line 463, in generate_long
+    x0_full = _aggregate_x0(
+              ^^^^^^^^^^^^^^
+  File "/home/bispl_02/jangho/wan/wan/long_video.py", line 123, in _aggregate_x0
+    buf = torch.zeros(C, T_total_lat, H, W, device=device,
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.AcceleratorError: CUDA error: invalid device ordinal
+GPU device may be out of range, do you have enough GPUs?
+CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+
+
+End time: Fri Mar 13 14:26:37 KST 2026
+✗ Failed to process prompt 1 (exit code: 1)
+Continuing with next prompt...
+
+----------------------------------------
+[2/30] Processing prompt:
+Prompt: A romantic drama scene of two people meeting for the first time in a crowded café. A woman in a red dress sits at a window table, nervously playing with her coffee cup. A man approaches, removes his coat, and sits across from her. They make eye contact, smile shyly, and begin talking. Close-ups of their expressions showing curiosity and attraction. Warm, soft lighting, shot on 35mm film with shallow depth of field and emotional color grading.
+Start time: Fri Mar 13 14:26:39 KST 2026
+----------------------------------------
+Output file: ./output_20260313/long-t2v-1.3B_832x480_1_1_A_romantic_drama_scene_of_two_people_meeting_for_t_20260313_142639.mp4
+[2026-03-13 14:26:45,148] INFO: Generation job args: Namespace(task='long-t2v-1.3B', size='832*480', frame_num=81, ckpt_dir='/home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B', offload_model=False, ulysses_size=1, ring_size=1, t5_fsdp=False, t5_cpu=False, dit_fsdp=False, save_file='./output_20260313/long-t2v-1.3B_832x480_1_1_A_romantic_drama_scene_of_two_people_meeting_for_t_20260313_142639.mp4', src_video=None, src_mask=None, src_ref_images=None, prompt='A romantic drama scene of two people meeting for the first time in a crowded café. A woman in a red dress sits at a window table, nervously playing with her coffee cup. A man approaches, removes his coat, and sits across from her. They make eye contact, smile shyly, and begin talking. Close-ups of their expressions showing curiosity and attraction. Warm, soft lighting, shot on 35mm film with shallow depth of field and emotional color grading.', use_prompt_extend=False, prompt_extend_method='local_qwen', prompt_extend_model=None, prompt_extend_target_lang='zh', base_seed=5255366844449295101, image=None, first_frame=None, last_frame=None, sample_solver='unipc', sample_steps=50, sample_shift=5.0, sample_guide_scale=5.0, long_window_size=81, long_multiplier=4, long_overlap_start=41, long_steps=25, long_t_max=999, long_t_min=200)
+[2026-03-13 14:26:45,148] INFO: Generation model config: {'__name__': 'Config: Wan T2V 1.3B', 't5_model': 'umt5_xxl', 't5_dtype': torch.bfloat16, 'text_len': 512, 'param_dtype': torch.bfloat16, 'num_train_timesteps': 1000, 'sample_fps': 16, 'sample_neg_prompt': '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走', 't5_checkpoint': 'models_t5_umt5-xxl-enc-bf16.pth', 't5_tokenizer': 'google/umt5-xxl', 'vae_checkpoint': 'Wan2.1_VAE.pth', 'vae_stride': (4, 8, 8), 'patch_size': (1, 2, 2), 'dim': 1536, 'ffn_dim': 8960, 'freq_dim': 256, 'num_heads': 12, 'num_layers': 30, 'window_size': (-1, -1), 'qk_norm': True, 'cross_attn_norm': True, 'eps': 1e-06}
+[2026-03-13 14:26:45,149] INFO: Input prompt: A romantic drama scene of two people meeting for the first time in a crowded café. A woman in a red dress sits at a window table, nervously playing with her coffee cup. A man approaches, removes his coat, and sits across from her. They make eye contact, smile shyly, and begin talking. Close-ups of their expressions showing curiosity and attraction. Warm, soft lighting, shot on 35mm film with shallow depth of field and emotional color grading.
+[2026-03-13 14:26:45,149] INFO: Creating WanT2VLong pipeline.
+[2026-03-13 14:27:36,852] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/models_t5_umt5-xxl-enc-bf16.pth
+[2026-03-13 14:27:55,872] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/Wan2.1_VAE.pth
+[2026-03-13 14:27:56,675] INFO: Creating WanModel from /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B
+[2026-03-13 14:27:59,067] INFO: Generating long video (window_size=81, multiplier=4, overlap_start=41, total_frames=201) ...
+[2026-03-13 14:27:59,068] INFO: [LongVideo] window_size=81, multiplier=4, overlap_start=41px (10lat), total_frames=201, num_windows=4, T_total_lat=51, T_win_lat=21, overlap=11lat (44px)
+[2026-03-13 14:27:59,068] INFO: [LongVideo] window starts (latent): [0, 10, 20, 30]
+SyncTweedies:   0%|          | 0/25 [00:00<?, ?it/s]==========================================
+Long Video Generation Experiments Started
+Date: Fri Mar 13 14:34:34 KST 2026
+GPU: 7
+Total Prompts: 48
+==========================================
+
+----------------------------------------
+[1/30] Processing prompt:
+Prompt: An action movie chase scene through narrow alleys, with a young woman in a leather jacket running and jumping over crates, her hair flying behind her as she glances back nervously. A pursuer in dark clothing follows closely, their footsteps echoing. Dynamic handheld camera movement, shot on RED camera with high contrast and fast-paced editing style.
+Start time: Fri Mar 13 14:34:34 KST 2026
+----------------------------------------
+Output file: ./output_20260313/long-t2v-1.3B_832x480_1_1_An_action_movie_chase_scene_through_narrow_alleys__20260313_143434.mp4
+[2026-03-13 14:34:38,991] INFO: Generation job args: Namespace(task='long-t2v-1.3B', size='832*480', frame_num=81, ckpt_dir='/home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B', offload_model=False, ulysses_size=1, ring_size=1, t5_fsdp=False, t5_cpu=False, dit_fsdp=False, save_file='./output_20260313/long-t2v-1.3B_832x480_1_1_An_action_movie_chase_scene_through_narrow_alleys__20260313_143434.mp4', src_video=None, src_mask=None, src_ref_images=None, prompt='An action movie chase scene through narrow alleys, with a young woman in a leather jacket running and jumping over crates, her hair flying behind her as she glances back nervously. A pursuer in dark clothing follows closely, their footsteps echoing. Dynamic handheld camera movement, shot on RED camera with high contrast and fast-paced editing style.', use_prompt_extend=False, prompt_extend_method='local_qwen', prompt_extend_model=None, prompt_extend_target_lang='zh', base_seed=481040639415763114, image=None, first_frame=None, last_frame=None, sample_solver='unipc', sample_steps=50, sample_shift=5.0, sample_guide_scale=5.0, long_window_size=81, long_multiplier=4, long_overlap_start=41, long_steps=25, long_t_max=999, long_t_min=200)
+[2026-03-13 14:34:38,991] INFO: Generation model config: {'__name__': 'Config: Wan T2V 1.3B', 't5_model': 'umt5_xxl', 't5_dtype': torch.bfloat16, 'text_len': 512, 'param_dtype': torch.bfloat16, 'num_train_timesteps': 1000, 'sample_fps': 16, 'sample_neg_prompt': '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走', 't5_checkpoint': 'models_t5_umt5-xxl-enc-bf16.pth', 't5_tokenizer': 'google/umt5-xxl', 'vae_checkpoint': 'Wan2.1_VAE.pth', 'vae_stride': (4, 8, 8), 'patch_size': (1, 2, 2), 'dim': 1536, 'ffn_dim': 8960, 'freq_dim': 256, 'num_heads': 12, 'num_layers': 30, 'window_size': (-1, -1), 'qk_norm': True, 'cross_attn_norm': True, 'eps': 1e-06}
+[2026-03-13 14:34:38,991] INFO: Input prompt: An action movie chase scene through narrow alleys, with a young woman in a leather jacket running and jumping over crates, her hair flying behind her as she glances back nervously. A pursuer in dark clothing follows closely, their footsteps echoing. Dynamic handheld camera movement, shot on RED camera with high contrast and fast-paced editing style.
+[2026-03-13 14:34:38,991] INFO: Creating WanT2VLong pipeline.
+[2026-03-13 14:35:27,985] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/models_t5_umt5-xxl-enc-bf16.pth
+[2026-03-13 14:35:38,718] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/Wan2.1_VAE.pth
+[2026-03-13 14:35:39,333] INFO: Creating WanModel from /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B
+[2026-03-13 14:35:41,410] INFO: Generating long video (window_size=81, multiplier=4, overlap_start=41, total_frames=201) ...
+[2026-03-13 14:35:41,410] INFO: [LongVideo] window_size=81, multiplier=4, overlap_start=41px (10lat), total_frames=201, num_windows=4, T_total_lat=51, T_win_lat=21, overlap=11lat (44px)
+[2026-03-13 14:35:41,410] INFO: [LongVideo] window starts (latent): [0, 10, 20, 30]
+SyncTweedies:   0%|          | 0/25 [00:00<?, ?it/s]SyncTweedies:   4%|▍         | 1/25 [00:12<04:57, 12.40s/it]SyncTweedies:   8%|▊         | 2/25 [00:19<03:36,  9.40s/it]SyncTweedies:  12%|█▏        | 3/25 [00:27<03:06,  8.46s/it]SyncTweedies:  16%|█▌        | 4/25 [00:34<02:48,  8.01s/it]SyncTweedies:  20%|██        | 5/25 [00:41<02:35,  7.77s/it]SyncTweedies:  24%|██▍       | 6/25 [00:49<02:24,  7.62s/it]SyncTweedies:  28%|██▊       | 7/25 [00:56<02:15,  7.53s/it]SyncTweedies:  32%|███▏      | 8/25 [01:03<02:07,  7.47s/it]SyncTweedies:  36%|███▌      | 9/25 [01:11<01:58,  7.43s/it]SyncTweedies:  40%|████      | 10/25 [01:18<01:51,  7.40s/it]SyncTweedies:  44%|████▍     | 11/25 [01:25<01:43,  7.38s/it]SyncTweedies:  48%|████▊     | 12/25 [01:33<01:35,  7.37s/it]SyncTweedies:  52%|█████▏    | 13/25 [01:40<01:28,  7.36s/it]SyncTweedies:  56%|█████▌    | 14/25 [01:47<01:20,  7.35s/it]SyncTweedies:  60%|██████    | 15/25 [01:55<01:13,  7.35s/it]SyncTweedies:  64%|██████▍   | 16/25 [02:02<01:06,  7.35s/it]SyncTweedies:  68%|██████▊   | 17/25 [02:09<00:58,  7.35s/it]SyncTweedies:  72%|███████▏  | 18/25 [02:17<00:51,  7.34s/it]SyncTweedies:  76%|███████▌  | 19/25 [02:24<00:44,  7.34s/it]SyncTweedies:  80%|████████  | 20/25 [02:31<00:36,  7.35s/it]SyncTweedies:  84%|████████▍ | 21/25 [02:39<00:29,  7.35s/it]SyncTweedies:  88%|████████▊ | 22/25 [02:46<00:22,  7.35s/it]SyncTweedies:  92%|█████████▏| 23/25 [02:53<00:14,  7.35s/it]SyncTweedies:  96%|█████████▌| 24/25 [03:01<00:07,  7.35s/it]SyncTweedies: 100%|██████████| 25/25 [03:08<00:00,  7.35s/it]SyncTweedies: 100%|██████████| 25/25 [03:08<00:00,  7.54s/it]
+[2026-03-13 14:38:53,320] INFO: [LongVideo] Decoding with VAE ...
+[2026-03-13 14:39:01,135] INFO: Saving generated video to ./output_20260313/long-t2v-1.3B_832x480_1_1_An_action_movie_chase_scene_through_narrow_alleys__20260313_143434.mp4
+[2026-03-13 14:39:03,607] INFO: Finished.
+
+End time: Fri Mar 13 14:39:05 KST 2026
+✓ Successfully completed prompt 1
+  Saved to: ./output_20260313/long-t2v-1.3B_832x480_1_1_An_action_movie_chase_scene_through_narrow_alleys__20260313_143434.mp4
+
+----------------------------------------
+[2/30] Processing prompt:
+Prompt: A romantic drama scene of two people meeting for the first time in a crowded café. A woman in a red dress sits at a window table, nervously playing with her coffee cup. A man approaches, removes his coat, and sits across from her. They make eye contact, smile shyly, and begin talking. Close-ups of their expressions showing curiosity and attraction. Warm, soft lighting, shot on 35mm film with shallow depth of field and emotional color grading.
+Start time: Fri Mar 13 14:39:07 KST 2026
+----------------------------------------
+Output file: ./output_20260313/long-t2v-1.3B_832x480_1_1_A_romantic_drama_scene_of_two_people_meeting_for_t_20260313_143907.mp4
+[2026-03-13 14:39:11,501] INFO: Generation job args: Namespace(task='long-t2v-1.3B', size='832*480', frame_num=81, ckpt_dir='/home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B', offload_model=False, ulysses_size=1, ring_size=1, t5_fsdp=False, t5_cpu=False, dit_fsdp=False, save_file='./output_20260313/long-t2v-1.3B_832x480_1_1_A_romantic_drama_scene_of_two_people_meeting_for_t_20260313_143907.mp4', src_video=None, src_mask=None, src_ref_images=None, prompt='A romantic drama scene of two people meeting for the first time in a crowded café. A woman in a red dress sits at a window table, nervously playing with her coffee cup. A man approaches, removes his coat, and sits across from her. They make eye contact, smile shyly, and begin talking. Close-ups of their expressions showing curiosity and attraction. Warm, soft lighting, shot on 35mm film with shallow depth of field and emotional color grading.', use_prompt_extend=False, prompt_extend_method='local_qwen', prompt_extend_model=None, prompt_extend_target_lang='zh', base_seed=8948590127727420440, image=None, first_frame=None, last_frame=None, sample_solver='unipc', sample_steps=50, sample_shift=5.0, sample_guide_scale=5.0, long_window_size=81, long_multiplier=4, long_overlap_start=41, long_steps=25, long_t_max=999, long_t_min=200)
+[2026-03-13 14:39:11,501] INFO: Generation model config: {'__name__': 'Config: Wan T2V 1.3B', 't5_model': 'umt5_xxl', 't5_dtype': torch.bfloat16, 'text_len': 512, 'param_dtype': torch.bfloat16, 'num_train_timesteps': 1000, 'sample_fps': 16, 'sample_neg_prompt': '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走', 't5_checkpoint': 'models_t5_umt5-xxl-enc-bf16.pth', 't5_tokenizer': 'google/umt5-xxl', 'vae_checkpoint': 'Wan2.1_VAE.pth', 'vae_stride': (4, 8, 8), 'patch_size': (1, 2, 2), 'dim': 1536, 'ffn_dim': 8960, 'freq_dim': 256, 'num_heads': 12, 'num_layers': 30, 'window_size': (-1, -1), 'qk_norm': True, 'cross_attn_norm': True, 'eps': 1e-06}
+[2026-03-13 14:39:11,501] INFO: Input prompt: A romantic drama scene of two people meeting for the first time in a crowded café. A woman in a red dress sits at a window table, nervously playing with her coffee cup. A man approaches, removes his coat, and sits across from her. They make eye contact, smile shyly, and begin talking. Close-ups of their expressions showing curiosity and attraction. Warm, soft lighting, shot on 35mm film with shallow depth of field and emotional color grading.
+[2026-03-13 14:39:11,501] INFO: Creating WanT2VLong pipeline.
+[2026-03-13 14:40:00,721] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/models_t5_umt5-xxl-enc-bf16.pth
+[2026-03-13 14:40:11,364] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/Wan2.1_VAE.pth
+[2026-03-13 14:40:11,944] INFO: Creating WanModel from /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B
+[2026-03-13 14:40:13,527] INFO: Generating long video (window_size=81, multiplier=4, overlap_start=41, total_frames=201) ...
+[2026-03-13 14:40:13,527] INFO: [LongVideo] window_size=81, multiplier=4, overlap_start=41px (10lat), total_frames=201, num_windows=4, T_total_lat=51, T_win_lat=21, overlap=11lat (44px)
+[2026-03-13 14:40:13,527] INFO: [LongVideo] window starts (latent): [0, 10, 20, 30]
+SyncTweedies:   0%|          | 0/25 [00:00<?, ?it/s]SyncTweedies:   4%|▍         | 1/25 [00:07<03:01,  7.57s/it]SyncTweedies:   8%|▊         | 2/25 [00:14<02:50,  7.40s/it]SyncTweedies:  12%|█▏        | 3/25 [00:22<02:41,  7.36s/it]SyncTweedies:  16%|█▌        | 4/25 [00:29<02:34,  7.34s/it]SyncTweedies:  20%|██        | 5/25 [00:36<02:26,  7.33s/it]SyncTweedies:  24%|██▍       | 6/25 [00:44<02:19,  7.33s/it]SyncTweedies:  28%|██▊       | 7/25 [00:51<02:11,  7.33s/it]SyncTweedies:  32%|███▏      | 8/25 [00:58<02:04,  7.33s/it]SyncTweedies:  36%|███▌      | 9/25 [01:06<01:57,  7.33s/it]SyncTweedies:  40%|████      | 10/25 [01:13<01:50,  7.34s/it]SyncTweedies:  44%|████▍     | 11/25 [01:20<01:42,  7.34s/it]SyncTweedies:  48%|████▊     | 12/25 [01:28<01:35,  7.34s/it]SyncTweedies:  52%|█████▏    | 13/25 [01:35<01:28,  7.35s/it]SyncTweedies:  56%|█████▌    | 14/25 [01:42<01:20,  7.35s/it]SyncTweedies:  60%|██████    | 15/25 [01:50<01:13,  7.35s/it]SyncTweedies:  64%|██████▍   | 16/25 [01:57<01:06,  7.35s/it]SyncTweedies:  68%|██████▊   | 17/25 [02:04<00:58,  7.36s/it]SyncTweedies:  72%|███████▏  | 18/25 [02:12<00:51,  7.36s/it]SyncTweedies:  76%|███████▌  | 19/25 [02:19<00:44,  7.36s/it]SyncTweedies:  80%|████████  | 20/25 [02:27<00:36,  7.36s/it]SyncTweedies:  84%|████████▍ | 21/25 [02:34<00:29,  7.36s/it]SyncTweedies:  88%|████████▊ | 22/25 [02:41<00:22,  7.36s/it]SyncTweedies:  92%|█████████▏| 23/25 [02:49<00:14,  7.37s/it]SyncTweedies:  96%|█████████▌| 24/25 [02:56<00:07,  7.37s/it]SyncTweedies: 100%|██████████| 25/25 [03:03<00:00,  7.37s/it]SyncTweedies: 100%|██████████| 25/25 [03:03<00:00,  7.35s/it]
+[2026-03-13 14:43:20,547] INFO: [LongVideo] Decoding with VAE ...
+[2026-03-13 14:43:28,368] INFO: Saving generated video to ./output_20260313/long-t2v-1.3B_832x480_1_1_A_romantic_drama_scene_of_two_people_meeting_for_t_20260313_143907.mp4
+[2026-03-13 14:43:30,628] INFO: Finished.
+
+End time: Fri Mar 13 14:43:32 KST 2026
+✓ Successfully completed prompt 2
+  Saved to: ./output_20260313/long-t2v-1.3B_832x480_1_1_A_romantic_drama_scene_of_two_people_meeting_for_t_20260313_143907.mp4
+
+----------------------------------------
+[3/30] Processing prompt:
+Prompt: A thriller movie scene of a detective in a trench coat investigating a crime scene at night. He kneels down, picks up evidence with gloved hands, examines it under a flashlight beam. His face shows concentration and concern. He stands up, looks around suspiciously, and walks slowly through the dark alley. Tense, slow camera push-in, shot on Arri Alexa with high contrast and desaturated colors.
+Start time: Fri Mar 13 14:43:34 KST 2026
+----------------------------------------
+Output file: ./output_20260313/long-t2v-1.3B_832x480_1_1_A_thriller_movie_scene_of_a_detective_in_a_trench__20260313_144334.mp4
+[2026-03-13 14:43:38,680] INFO: Generation job args: Namespace(task='long-t2v-1.3B', size='832*480', frame_num=81, ckpt_dir='/home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B', offload_model=False, ulysses_size=1, ring_size=1, t5_fsdp=False, t5_cpu=False, dit_fsdp=False, save_file='./output_20260313/long-t2v-1.3B_832x480_1_1_A_thriller_movie_scene_of_a_detective_in_a_trench__20260313_144334.mp4', src_video=None, src_mask=None, src_ref_images=None, prompt='A thriller movie scene of a detective in a trench coat investigating a crime scene at night. He kneels down, picks up evidence with gloved hands, examines it under a flashlight beam. His face shows concentration and concern. He stands up, looks around suspiciously, and walks slowly through the dark alley. Tense, slow camera push-in, shot on Arri Alexa with high contrast and desaturated colors.', use_prompt_extend=False, prompt_extend_method='local_qwen', prompt_extend_model=None, prompt_extend_target_lang='zh', base_seed=3415975033247960707, image=None, first_frame=None, last_frame=None, sample_solver='unipc', sample_steps=50, sample_shift=5.0, sample_guide_scale=5.0, long_window_size=81, long_multiplier=4, long_overlap_start=41, long_steps=25, long_t_max=999, long_t_min=200)
+[2026-03-13 14:43:38,680] INFO: Generation model config: {'__name__': 'Config: Wan T2V 1.3B', 't5_model': 'umt5_xxl', 't5_dtype': torch.bfloat16, 'text_len': 512, 'param_dtype': torch.bfloat16, 'num_train_timesteps': 1000, 'sample_fps': 16, 'sample_neg_prompt': '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走', 't5_checkpoint': 'models_t5_umt5-xxl-enc-bf16.pth', 't5_tokenizer': 'google/umt5-xxl', 'vae_checkpoint': 'Wan2.1_VAE.pth', 'vae_stride': (4, 8, 8), 'patch_size': (1, 2, 2), 'dim': 1536, 'ffn_dim': 8960, 'freq_dim': 256, 'num_heads': 12, 'num_layers': 30, 'window_size': (-1, -1), 'qk_norm': True, 'cross_attn_norm': True, 'eps': 1e-06}
+[2026-03-13 14:43:38,680] INFO: Input prompt: A thriller movie scene of a detective in a trench coat investigating a crime scene at night. He kneels down, picks up evidence with gloved hands, examines it under a flashlight beam. His face shows concentration and concern. He stands up, looks around suspiciously, and walks slowly through the dark alley. Tense, slow camera push-in, shot on Arri Alexa with high contrast and desaturated colors.
+[2026-03-13 14:43:38,680] INFO: Creating WanT2VLong pipeline.
+[2026-03-13 14:44:26,975] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/models_t5_umt5-xxl-enc-bf16.pth
+[2026-03-13 14:44:37,565] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/Wan2.1_VAE.pth
+[2026-03-13 14:44:38,019] INFO: Creating WanModel from /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B
+[2026-03-13 14:44:39,567] INFO: Generating long video (window_size=81, multiplier=4, overlap_start=41, total_frames=201) ...
+[2026-03-13 14:44:39,567] INFO: [LongVideo] window_size=81, multiplier=4, overlap_start=41px (10lat), total_frames=201, num_windows=4, T_total_lat=51, T_win_lat=21, overlap=11lat (44px)
+[2026-03-13 14:44:39,567] INFO: [LongVideo] window starts (latent): [0, 10, 20, 30]
+SyncTweedies:   0%|          | 0/25 [00:00<?, ?it/s]SyncTweedies:   4%|▍         | 1/25 [00:07<03:01,  7.55s/it]SyncTweedies:   8%|▊         | 2/25 [00:14<02:50,  7.40s/it]SyncTweedies:  12%|█▏        | 3/25 [00:22<02:42,  7.37s/it]SyncTweedies:  16%|█▌        | 4/25 [00:29<02:34,  7.35s/it]SyncTweedies:  20%|██        | 5/25 [00:36<02:26,  7.35s/it]SyncTweedies:  24%|██▍       | 6/25 [00:44<02:19,  7.35s/it]SyncTweedies:  28%|██▊       | 7/25 [00:51<02:12,  7.35s/it]SyncTweedies:  32%|███▏      | 8/25 [00:58<02:04,  7.35s/it]SyncTweedies:  36%|███▌      | 9/25 [01:06<01:57,  7.35s/it]SyncTweedies:  40%|████      | 10/25 [01:13<01:50,  7.35s/it]SyncTweedies:  44%|████▍     | 11/25 [01:21<01:43,  7.38s/it]SyncTweedies:  48%|████▊     | 12/25 [01:28<01:36,  7.40s/it]SyncTweedies:  52%|█████▏    | 13/25 [01:36<01:32,  7.73s/it]SyncTweedies:  56%|█████▌    | 14/25 [01:44<01:24,  7.71s/it]SyncTweedies:  60%|██████    | 15/25 [01:56<01:29,  8.99s/it]SyncTweedies:  64%|██████▍   | 16/25 [02:08<01:29,  9.97s/it]SyncTweedies:  68%|██████▊   | 17/25 [02:21<01:25, 10.71s/it]SyncTweedies:  72%|███████▏  | 18/25 [02:32<01:15, 10.80s/it]SyncTweedies:  76%|███████▌  | 19/25 [02:39<00:58,  9.76s/it]SyncTweedies:  80%|████████  | 20/25 [02:46<00:45,  9.04s/it]SyncTweedies:  84%|████████▍ | 21/25 [02:54<00:34,  8.54s/it]SyncTweedies:  88%|████████▊ | 22/25 [03:01<00:24,  8.19s/it]SyncTweedies:  92%|█████████▏| 23/25 [03:09<00:15,  7.97s/it]SyncTweedies:  96%|█████████▌| 24/25 [03:16<00:07,  7.80s/it]SyncTweedies: 100%|██████████| 25/25 [03:24<00:00,  7.79s/it]SyncTweedies: 100%|██████████| 25/25 [03:24<00:00,  8.17s/it]
+[2026-03-13 14:48:06,865] INFO: [LongVideo] Decoding with VAE ...
+[2026-03-13 14:48:15,923] INFO: Saving generated video to ./output_20260313/long-t2v-1.3B_832x480_1_1_A_thriller_movie_scene_of_a_detective_in_a_trench__20260313_144334.mp4
+[2026-03-13 14:48:18,309] INFO: Finished.
+
+End time: Fri Mar 13 14:48:19 KST 2026
+✓ Successfully completed prompt 3
+  Saved to: ./output_20260313/long-t2v-1.3B_832x480_1_1_A_thriller_movie_scene_of_a_detective_in_a_trench__20260313_144334.mp4
+
+----------------------------------------
+[4/30] Processing prompt:
+Prompt: A comedy scene of a businessman in a suit slipping on a banana peel in a busy street. His briefcase flies into the air, papers scatter everywhere. He falls backward with arms flailing, landing on his back. Pedestrians stop and stare, some covering their mouths to hide laughter. A street vendor rushes over to help him up. Lighthearted cinematography with vibrant colors, shot on digital camera with dynamic movement.
+Start time: Fri Mar 13 14:48:21 KST 2026
+----------------------------------------
+Output file: ./output_20260313/long-t2v-1.3B_832x480_1_1_A_comedy_scene_of_a_businessman_in_a_suit_slipping_20260313_144821.mp4
+[2026-03-13 14:48:26,037] INFO: Generation job args: Namespace(task='long-t2v-1.3B', size='832*480', frame_num=81, ckpt_dir='/home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B', offload_model=False, ulysses_size=1, ring_size=1, t5_fsdp=False, t5_cpu=False, dit_fsdp=False, save_file='./output_20260313/long-t2v-1.3B_832x480_1_1_A_comedy_scene_of_a_businessman_in_a_suit_slipping_20260313_144821.mp4', src_video=None, src_mask=None, src_ref_images=None, prompt='A comedy scene of a businessman in a suit slipping on a banana peel in a busy street. His briefcase flies into the air, papers scatter everywhere. He falls backward with arms flailing, landing on his back. Pedestrians stop and stare, some covering their mouths to hide laughter. A street vendor rushes over to help him up. Lighthearted cinematography with vibrant colors, shot on digital camera with dynamic movement.', use_prompt_extend=False, prompt_extend_method='local_qwen', prompt_extend_model=None, prompt_extend_target_lang='zh', base_seed=9148680598168856432, image=None, first_frame=None, last_frame=None, sample_solver='unipc', sample_steps=50, sample_shift=5.0, sample_guide_scale=5.0, long_window_size=81, long_multiplier=4, long_overlap_start=41, long_steps=25, long_t_max=999, long_t_min=200)
+[2026-03-13 14:48:26,037] INFO: Generation model config: {'__name__': 'Config: Wan T2V 1.3B', 't5_model': 'umt5_xxl', 't5_dtype': torch.bfloat16, 'text_len': 512, 'param_dtype': torch.bfloat16, 'num_train_timesteps': 1000, 'sample_fps': 16, 'sample_neg_prompt': '色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走', 't5_checkpoint': 'models_t5_umt5-xxl-enc-bf16.pth', 't5_tokenizer': 'google/umt5-xxl', 'vae_checkpoint': 'Wan2.1_VAE.pth', 'vae_stride': (4, 8, 8), 'patch_size': (1, 2, 2), 'dim': 1536, 'ffn_dim': 8960, 'freq_dim': 256, 'num_heads': 12, 'num_layers': 30, 'window_size': (-1, -1), 'qk_norm': True, 'cross_attn_norm': True, 'eps': 1e-06}
+[2026-03-13 14:48:26,037] INFO: Input prompt: A comedy scene of a businessman in a suit slipping on a banana peel in a busy street. His briefcase flies into the air, papers scatter everywhere. He falls backward with arms flailing, landing on his back. Pedestrians stop and stare, some covering their mouths to hide laughter. A street vendor rushes over to help him up. Lighthearted cinematography with vibrant colors, shot on digital camera with dynamic movement.
+[2026-03-13 14:48:26,037] INFO: Creating WanT2VLong pipeline.
+[2026-03-13 14:49:14,789] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/models_t5_umt5-xxl-enc-bf16.pth
+[2026-03-13 14:49:26,297] INFO: loading /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B/Wan2.1_VAE.pth
+[2026-03-13 14:49:26,820] INFO: Creating WanModel from /home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B
+[2026-03-13 14:49:28,452] INFO: Generating long video (window_size=81, multiplier=4, overlap_start=41, total_frames=201) ...
+[2026-03-13 14:49:28,452] INFO: [LongVideo] window_size=81, multiplier=4, overlap_start=41px (10lat), total_frames=201, num_windows=4, T_total_lat=51, T_win_lat=21, overlap=11lat (44px)
+[2026-03-13 14:49:28,452] INFO: [LongVideo] window starts (latent): [0, 10, 20, 30]
+SyncTweedies:   0%|          | 0/25 [00:00<?, ?it/s]SyncTweedies:   4%|▍         | 1/25 [00:07<03:00,  7.54s/it]SyncTweedies:   8%|▊         | 2/25 [00:14<02:50,  7.40s/it]SyncTweedies:  12%|█▏        | 3/25 [00:22<02:42,  7.37s/it]SyncTweedies:  16%|█▌        | 4/25 [00:29<02:34,  7.35s/it]SyncTweedies:  20%|██        | 5/25 [00:36<02:26,  7.35s/it]SyncTweedies:  24%|██▍       | 6/25 [00:44<02:19,  7.35s/it]SyncTweedies:  28%|██▊       | 7/25 [00:51<02:12,  7.35s/it]SyncTweedies:  32%|███▏      | 8/25 [00:58<02:05,  7.36s/it]
+==========================================
+⚠️  Interrupted by user (Ctrl+C)
+Stopping current process...
+Interrupted at: Fri Mar 13 14:50:35 KST 2026
+Last processed prompt: 4/30
+==========================================
