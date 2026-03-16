@@ -615,7 +615,10 @@ class WanT2VLong(WanT2V):
         # ------------------------------------------------------------------ #
         # 8.  ODE denoising loop (Tweedie Caching)                            #
         #     Process windows sequentially: each window independently         #
+        #     Cache structure: x0_cache[t_key][win_idx] = [C, overlap_lat, H, W] tensor
         # ------------------------------------------------------------------ #
+        # Cache structure: x0_cache[t_key][win_idx] = cached overlap x0
+        x0_cache = {}  # x0_cache[t_key][win_idx] = cached overlap x0
         
         with amp.autocast(dtype=self.param_dtype), torch.no_grad(), no_sync():
             # Process each window sequentially (OUTER LOOP)
@@ -767,8 +770,20 @@ class WanT2VLong(WanT2V):
                     window_x0 = (window_latent - sigma * vp).detach()
                     
                     del vc, vu
-                    
                     del vp
+                    
+                    # Reuse cached x0 for overlapping part from previous window
+                    # This is the core of Tweedie Caching: reuse x0 predictions across windows
+                    if win_idx > 0 and reuse_start_in_window is not None and reuse_end_in_window is not None:
+                        if t_key in x0_cache and (win_idx - 1) in x0_cache[t_key]:
+                            cached_x0_overlap = x0_cache[t_key][win_idx - 1]
+                            reuse_size = reuse_end_in_window - reuse_start_in_window
+                            cached_size = cached_x0_overlap.shape[1]
+                            actual_size = min(reuse_size, cached_size)
+                            
+                            # Replace overlap region with cached x0
+                            window_x0[:, reuse_start_in_window:reuse_start_in_window + actual_size, :, :] = \
+                                cached_x0_overlap[:, :actual_size, :, :]
                     
                     # UniPC ODE step on this window's latent
                     window_latent = sample_scheduler.step_with_refined_x0(
@@ -778,6 +793,14 @@ class WanT2VLong(WanT2V):
                         return_dict=False,
                         generator=seed_g,
                     )[0].squeeze(0)
+                    
+                    # Cache overlapping region x0 for next window (if there is a next window)
+                    if win_idx < len(starts) - 1 and overlap_start_in_window is not None and overlap_end_in_window is not None:
+                        if overlap_start_in_window < overlap_end_in_window:
+                            if t_key not in x0_cache:
+                                x0_cache[t_key] = {}
+                            # Store the overlapping part x0 in cache for next window to reuse
+                            x0_cache[t_key][win_idx] = window_x0[:, overlap_start_in_window:overlap_end_in_window, :, :].clone()
                     
                     del window_x0
                     
@@ -829,7 +852,7 @@ class WanT2VLong(WanT2V):
             else:
                 video = None
 
-        del video_latent, sample_scheduler
+        del video_latent, sample_scheduler, x0_cache
         if offload_model:
             gc.collect()
             torch.cuda.synchronize()
