@@ -20,5 +20,8 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Large files (if needed)
-# *.mp4
+# Large files
+output_*/
+models/
+my_debug_output/
+debug_windows/

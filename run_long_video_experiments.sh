@@ -24,10 +24,10 @@ cleanup_on_interrupt() {
 trap cleanup_on_interrupt SIGINT
 
 # 설정
-GPU_ID=7
+GPU_ID=3
 TASK="long-t2v-1.3B"
 SIZE="832*480"
-CKPT_DIR="/home/bispl_02/dohun/ReCamMaster_framepack_cdp_train_full/models/Wan-AI/Wan2.1-T2V-1.3B"
+CKPT_DIR="./models/Wan2.1-T2V-1.3B"
 WINDOW_SIZE=81
 MULTIPLIER=4
 OVERLAP_START=41
@@ -44,8 +44,8 @@ mkdir -p "$OUTPUT_DIR"
 # 로그 파일
 LOG_FILE="$OUTPUT_DIR/experiment_log.txt"
 
-# Conda 초기화
-source $(conda info --base)/etc/profile.d/conda.sh
+# Conda 초기화 (더 간단한 방법)
+eval "$(conda shell.bash hook)"
 conda activate wan
 
 echo "==========================================" | tee -a "$LOG_FILE"
