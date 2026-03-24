@@ -8,6 +8,10 @@ from datetime import datetime
 
 warnings.filterwarnings('ignore')
 
+# Generate timestamp at module import time (when Python script starts, not when generate() is called)
+# This captures the bash execution time more accurately
+SCRIPT_START_TIME = datetime.now().strftime("%Y%m%d_%H%M%S")
+
 import random
 
 import torch
@@ -287,7 +291,42 @@ def _parse_args():
         "--long_steps",
         type=int,
         default=50,
-        help="[long video] Number of outer SyncTweedies annealing steps.")
+        help="Number of denoising steps for long video generation",
+    )
+    parser.add_argument(
+        "--use_cached",
+        action="store_true",
+        help="Use Tweedie Caching method instead of SyncTweedies for long video generation")
+    parser.add_argument(
+        "--cache_xt",
+        action="store_true",
+        help="[Tweedie Caching] Also cache and reuse x_t (latent state) in overlap regions, "
+             "in addition to x0. This ensures consistent trajectory across windows.")
+    parser.add_argument(
+        "--velocity_interpolation",
+        action="store_true",
+        help="[Long video] Use velocity field interpolation in overlap regions (blend cached velocity with model velocity).")
+    parser.add_argument(
+        "--velocity_blend",
+        action="store_true",
+        help="[Tweedie Caching] Blend velocity vectors in overlap regions using vector field properties. "
+             "Ensures smooth transitions between cached and new velocities.")
+    parser.add_argument(
+        "--blend_method",
+        type=str,
+        default="linear",
+        choices=["linear", "rbf", "smoothstep"],
+        help="[Tweedie Caching] Blending method for velocity: 'linear' (default), 'rbf' (smoother), 'smoothstep' (smooth)")
+    parser.add_argument(
+        "--rbf_gamma",
+        type=float,
+        default=0.1,
+        help="[Tweedie Caching] Gamma parameter for RBF kernel (only used when blend_method='rbf'). "
+             "Smaller values (e.g., 0.01) = smoother transition, larger values (e.g., 1.0) = sharper transition. Default: 0.1")
+    parser.add_argument(
+        "--soft_blend",
+        action="store_true",
+        help="[Long video] When velocity_interpolation is enabled, use soft linear blend (fade cached→model) instead of hard replacement.")
     parser.add_argument(
         "--long_t_max",
         type=int,
@@ -300,35 +339,16 @@ def _parse_args():
         help="[long video] Ending timestep for outer annealing. "
              "Setting > 0 avoids over-sharpening.")
     parser.add_argument(
-        "--velocity_interpolation",
+        "--debug_save_tweedie_videos",
         action="store_true",
-        help="[long video] Same as --overlap_mode velocity_interp.")
-    parser.add_argument(
-        "--overlap_mode",
-        type=str,
-        default="x0_weighted",
-        choices=["x0_weighted", "velocity_interp", "both", "last_write"],
-        help="[long video] Overlap aggregation (4 cases): "
-             "'x0_weighted' (x0 avg only), "
-             "'velocity_interp' (velocity interp only), "
-             "'both' (x0 avg + velocity interp), "
-             "'last_write' (no blend, last chunk wins).")
-    parser.add_argument(
-        "--debug_save_velocity_metrics",
-        action="store_true",
-        help="[long video] Save velocity metrics and heatmaps for visualization.")
+        help="[SyncTweedies] Save aggregated Tweedie x0 decoded to video at 4 "
+             "timestep intervals for debugging.")
     parser.add_argument(
         "--debug_save_dir",
         type=str,
-        default="./debug_velocity",
-        help="[long video] Directory for debug velocity outputs. Default: ./debug_velocity")
-    parser.add_argument(
-        "--sequential_windows",
-        choices=["true", "false", "auto"],
-        default="auto",
-        help="[long video] Process windows sequentially (not batched) to avoid OOM on 14B. "
-             "'auto' (default): use sequential for 14B, batch for 1.3B. "
-             "'true': force sequential. 'false': force batch.")
+        default=None,
+        help="[SyncTweedies] Directory for debug Tweedie videos. "
+             "Default: ./debug_tweedie_timesteps")
 
     args = parser.parse_args()
 
@@ -463,28 +483,37 @@ def generate(args):
             f"multiplier={args.long_multiplier}, "
             f"overlap_start={args.long_overlap_start}, "
             f"total_frames={total_frames}) ...")
-        # Resolve overlap mode: --velocity_interpolation overrides to velocity_interp
-        overlap_mode = "velocity_interp" if args.velocity_interpolation else args.overlap_mode
-        sequential_windows = (
-            None if args.sequential_windows == "auto"
-            else (args.sequential_windows == "true")
-        )
-
-        video = wan_long.generate_long(
-            args.prompt,
-            size=SIZE_CONFIGS[args.size],
-            window_size=args.long_window_size,
-            multiplier=args.long_multiplier,
-            overlap_start=args.long_overlap_start,
-            max_steps=args.long_steps,
-            shift=args.sample_shift,
-            guide_scale=args.sample_guide_scale,
-            seed=args.base_seed,
-            offload_model=args.offload_model,
-            overlap_mode=overlap_mode,
-            sequential_windows=sequential_windows,
-            debug_save_velocity_metrics=args.debug_save_velocity_metrics,
-            debug_save_dir=args.debug_save_dir)
+        if args.use_cached:
+            video = wan_long.generate_long_cached(
+                args.prompt,
+                size=SIZE_CONFIGS[args.size],
+                window_size=args.long_window_size,
+                multiplier=args.long_multiplier,
+                overlap_start=args.long_overlap_start,
+                max_steps=args.long_steps,
+                shift=args.sample_shift,
+                guide_scale=args.sample_guide_scale,
+                seed=args.base_seed,
+                offload_model=args.offload_model,
+                soft_blend=args.soft_blend,
+                cache_x_t=args.cache_xt,
+                velocity_blend=args.velocity_blend,
+                blend_method=args.blend_method,
+                rbf_gamma=args.rbf_gamma)
+        else:
+            video = wan_long.generate_long(
+                args.prompt,
+                size=SIZE_CONFIGS[args.size],
+                window_size=args.long_window_size,
+                multiplier=args.long_multiplier,
+                overlap_start=args.long_overlap_start,
+                max_steps=args.long_steps,
+                shift=args.sample_shift,
+                guide_scale=args.sample_guide_scale,
+                seed=args.base_seed,
+                offload_model=args.offload_model,
+                debug_save_tweedie_videos=args.debug_save_tweedie_videos,
+                debug_save_dir=args.debug_save_dir)
 
     elif "t2v" in args.task or "t2i" in args.task:
         if args.prompt is None:
@@ -712,22 +741,20 @@ def generate(args):
 
     if rank == 0:
         if args.save_file is None:
-            formatted_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+            # Use script start time (bash execution time) instead of current time
+            formatted_time = SCRIPT_START_TIME
             formatted_prompt = args.prompt.replace(" ", "_").replace("/",
                                                                      "_")[:50]
             suffix = '.png' if "t2i" in args.task else '.mp4'
-            output_dir = f"output_{formatted_time}"
-            os.makedirs(output_dir, exist_ok=True)
+            
             filename = f"{args.task}_{args.size.replace('*','x') if sys.platform=='win32' else args.size}_{args.ulysses_size}_{args.ring_size}_{formatted_prompt}_{formatted_time}" + suffix
+            
+            # Create output directory based on bash execution time
+            output_dir = f"output_{SCRIPT_START_TIME}"
+            os.makedirs(output_dir, exist_ok=True)
+            
+            # Save file in the output directory
             args.save_file = os.path.join(output_dir, filename)
-        else:
-            output_dir = os.path.dirname(args.save_file) or "."
-            if output_dir:
-                os.makedirs(output_dir, exist_ok=True)
-
-        # Save command-line args for reproducibility
-        with open(os.path.join(output_dir, "args.txt"), "w") as f:
-            f.write(" ".join(sys.argv))
 
         if "t2i" in args.task:
             logging.info(f"Saving generated image to {args.save_file}")

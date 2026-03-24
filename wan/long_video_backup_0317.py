@@ -11,7 +11,6 @@ import random
 import sys
 from contextlib import contextmanager
 
-import numpy as np
 import torch
 import torch.cuda.amp as amp
 import torch.distributed as dist
@@ -19,6 +18,7 @@ from tqdm import tqdm
 
 from .text2video import WanT2V
 from .utils.fm_solvers_unipc import FlowUniPCMultistepScheduler
+from .utils.utils import cache_video
 
 
 def _get_window_starts(T_total_lat: int, T_win_lat: int,
@@ -114,7 +114,7 @@ def _aggregate_x0(x0_preds: list, starts: list, T_win_lat: int,
 
     Args:
         x0_preds: list of [C, T_win_lat, H, W] tensors
-        starts:   list of latent frame start positions (same length -as x0_preds)
+        starts:   list of latent frame start positions (same length as x0_preds)
         avg_mode: if True, average overlapping predictions;
                   if False, last write wins (individual mode).
 
@@ -136,6 +136,55 @@ def _aggregate_x0(x0_preds: list, starts: list, T_win_lat: int,
         for x0, s in zip(x0_preds, starts):
             buf[:, s:s + T_win_lat, :, :] = x0
         return buf
+
+
+def _blend_velocity(
+    cached_velocity: torch.Tensor,
+    new_velocity: torch.Tensor,
+    overlap_size: int,
+    method: str = "linear",
+    device: torch.device = None,
+    gamma: float = 0.1,
+) -> torch.Tensor:
+    """Blend velocity vectors in overlap region using vector field properties.
+    
+    Args:
+        cached_velocity: Velocity from previous window [C, overlap_frames, H, W]
+        new_velocity: Velocity from current window [C, overlap_frames, H, W]
+        overlap_size: Number of frames in overlap region
+        method: Blending method ("linear", "rbf", "smoothstep")
+        device: Torch device
+        
+    Returns:
+        Blended velocity [C, overlap_frames, H, W]
+    """
+    if method == "linear":
+        # Linear blending: weight decreases from 1.0 (start) to 0.0 (end)
+        # This ensures smooth transition from cached to new velocity
+        weights = torch.linspace(1.0, 0.0, overlap_size, device=device, dtype=cached_velocity.dtype)
+        weights = weights[None, :, None, None]  # [1, T, 1, 1]
+        blended = weights * cached_velocity + (1 - weights) * new_velocity
+        
+    elif method == "rbf":
+        # RBF (Radial Basis Function) kernel: exp(-γ * d²)
+        # Creates smoother, more natural transition
+        # gamma: Controls transition sharpness (smaller = smoother, larger = sharper)
+        distances = torch.linspace(0.0, 1.0, overlap_size, device=device, dtype=cached_velocity.dtype)
+        weights = torch.exp(-gamma * distances ** 2)
+        weights = weights[None, :, None, None]  # [1, T, 1, 1]
+        blended = weights * cached_velocity + (1 - weights) * new_velocity
+        
+    elif method == "smoothstep":
+        # Smoothstep function: 3t² - 2t³ for smoother transitions
+        t = torch.linspace(0.0, 1.0, overlap_size, device=device, dtype=cached_velocity.dtype)
+        weights = 3 * t ** 2 - 2 * t ** 3  # Smoothstep
+        weights = weights[None, :, None, None]  # [1, T, 1, 1]
+        blended = weights * cached_velocity + (1 - weights) * new_velocity
+        
+    else:
+        raise ValueError(f"Unknown blending method: {method}")
+    
+    return blended
 
 
 def _aggregate_x0_weighted(x0_preds: list, starts: list, T_win_lat: int,
@@ -245,124 +294,6 @@ def _aggregate_x0_weighted(x0_preds: list, starts: list, T_win_lat: int,
     return buf / weight_sum[None, :, None, None].clamp(min=1.0)
 
 
-def _aggregate_x0_weighted_velocity_interp(
-    vp_preds: list,
-    windows: list,
-    starts: list,
-    T_win_lat: int,
-    T_total_lat: int,
-    overlap_start_lat: int,
-    sigma: float,
-    C: int,
-    H: int,
-    W: int,
-    device: torch.device,
-) -> torch.Tensor:
-    """Aggregate x0 using velocity interpolation in overlap regions.
-
-    In overlap regions: blend velocity vectors first (linear weights), then
-    compute x0 = x_t - sigma * vp_blended for smoother chunk transitions.
-
-    Args:
-        vp_preds: list of velocity tensors [C, T_win_lat, H, W]
-        windows: list of window tensors (x_t) [C, T_win_lat, H, W]
-        starts, T_win_lat, T_total_lat, overlap_start_lat: geometry
-        sigma: current timestep sigma for Tweedie formula
-        C, H, W, device: dimensions and device
-
-    Returns:
-        Full video x̂₀ [C, T_total_lat, H, W]
-    """
-    buf = torch.zeros(C, T_total_lat, H, W, device=device,
-                      dtype=vp_preds[0].dtype)
-    num_chunks = len(vp_preds)
-
-    for chunk_idx, (vp, window) in enumerate(zip(vp_preds, windows)):
-        start = starts[chunk_idx]
-        chunk_end = start + T_win_lat
-
-        # Non-overlapping region before overlap
-        non_overlap_start = start
-        non_overlap_end = start + overlap_start_lat
-        if chunk_idx == 0:
-            if non_overlap_start < non_overlap_end:
-                x0_part = window[:, :non_overlap_end - non_overlap_start, :, :] - sigma * vp[:, :non_overlap_end - non_overlap_start, :, :]
-                buf[:, non_overlap_start:non_overlap_end, :, :] = x0_part
-        else:
-            prev_chunk_end = starts[chunk_idx - 1] + T_win_lat
-            if prev_chunk_end <= non_overlap_start and non_overlap_start < non_overlap_end:
-                n = non_overlap_end - non_overlap_start
-                x0_part = window[:, :n, :, :] - sigma * vp[:, :n, :, :]
-                buf[:, non_overlap_start:non_overlap_end, :, :] = x0_part
-
-        # Overlapping region: blend velocity, then x0 = x_t - sigma * vp_blended
-        if chunk_idx < num_chunks - 1:
-            next_chunk_start = starts[chunk_idx + 1]
-            overlap_region_start = start + overlap_start_lat
-            overlap_region_end = min(chunk_end, next_chunk_start + T_win_lat, T_total_lat)
-
-            if overlap_region_start < overlap_region_end:
-                overlap_size = overlap_region_end - overlap_region_start
-
-                vp_this = vp[:, overlap_start_lat:overlap_start_lat + overlap_size, :, :]
-                vp_next = vp_preds[chunk_idx + 1][:, :overlap_size, :, :]
-
-                weights_this = torch.linspace(1.0, 0.0, overlap_size,
-                                              device=device,
-                                              dtype=vp.dtype)[None, :, None, None]
-                weights_next = torch.linspace(0.0, 1.0, overlap_size,
-                                              device=device,
-                                              dtype=vp.dtype)[None, :, None, None]
-
-                vp_blended = weights_this * vp_this + weights_next * vp_next
-                x_t_overlap = window[:, overlap_start_lat:overlap_start_lat + overlap_size, :, :]
-                x0_blended = x_t_overlap - sigma * vp_blended
-                buf[:, overlap_region_start:overlap_region_end, :, :] = x0_blended
-
-        # Non-overlapping region after overlap (last chunk)
-        if chunk_idx == num_chunks - 1:
-            post_overlap_start = start + overlap_start_lat
-            post_overlap_end = min(chunk_end, T_total_lat)
-            if chunk_idx > 0:
-                prev_chunk_end = starts[chunk_idx - 1] + T_win_lat
-                post_overlap_start = max(post_overlap_start, prev_chunk_end)
-
-            if post_overlap_start < post_overlap_end:
-                local_start = post_overlap_start - start
-                n = post_overlap_end - post_overlap_start
-                x0_part = window[:, local_start:local_start + n, :, :] - sigma * vp[:, local_start:local_start + n, :, :]
-                buf[:, post_overlap_start:post_overlap_end, :, :] = x0_part
-
-    return buf
-
-
-def _aggregate_x0_both(
-    x0_preds: list,
-    vp_preds: list,
-    windows: list,
-    starts: list,
-    T_win_lat: int,
-    T_total_lat: int,
-    overlap_start_lat: int,
-    sigma: float,
-    C: int,
-    H: int,
-    W: int,
-    device: torch.device,
-) -> torch.Tensor:
-    """Aggregate x0 using BOTH x0 weighted average AND velocity interpolation in overlap.
-
-    In overlap: x0_final = (x0_weighted + x0_velocity_interp) / 2
-    """
-    x0_weighted = _aggregate_x0_weighted(
-        x0_preds, starts, T_win_lat, T_total_lat, overlap_start_lat,
-        C, H, W, device)
-    x0_velocity_interp = _aggregate_x0_weighted_velocity_interp(
-        vp_preds, windows, starts, T_win_lat, T_total_lat, overlap_start_lat,
-        sigma, C, H, W, device)
-    return (x0_weighted + x0_velocity_interp) / 2.0
-
-
 class WanT2VLong(WanT2V):
     """Long video generation by extending WanT2V with SyncTweedies.
 
@@ -385,10 +316,8 @@ class WanT2VLong(WanT2V):
         n_prompt: str = "",
         seed: int = -1,
         offload_model: bool = True,
-        overlap_mode: str = "x0_weighted",
-        sequential_windows: bool | None = None,
-        debug_save_velocity_metrics: bool = False,
-        debug_save_dir: str = "./debug_velocity",
+        debug_save_tweedie_videos: bool = False,
+        debug_save_dir: str = None,
     ):
         """Generate a long video using multiplier-based chunking with weighted averaging.
 
@@ -410,10 +339,10 @@ class WanT2VLong(WanT2V):
             n_prompt: Negative prompt. Falls back to config default if empty.
             seed: RNG seed. -1 means random.
             offload_model: Offload DiT to CPU between steps to save VRAM.
-            overlap_mode: "x0_weighted" (x0 avg only), "velocity_interp" (velocity only),
-                "both" (x0 avg + velocity interp), "last_write" (no blend, last chunk wins).
-            sequential_windows: If True, process windows one-by-one (avoids OOM on 14B).
-                If None, auto-detect: use sequential when model.dim >= 5000 (14B).
+            debug_save_tweedie_videos: If True, save aggregated x0 decoded to video
+                at 4 timestep intervals for debugging.
+            debug_save_dir: Directory for debug videos. Used when
+                debug_save_tweedie_videos=True. Default: ./debug_tweedie_timesteps.
 
         Returns:
             torch.Tensor: [3, total_frames, H, W] video in [-1, 1] range,
@@ -427,15 +356,6 @@ class WanT2VLong(WanT2V):
         assert multiplier >= 1, f"multiplier must be >= 1, got {multiplier}"
         assert 0 < overlap_start < window_size, (
             f"overlap_start must be in (0, window_size), got {overlap_start}")
-        assert overlap_mode in ("x0_weighted", "velocity_interp", "both", "last_write"), (
-            f"overlap_mode must be 'x0_weighted', 'velocity_interp', 'both', or 'last_write', got {overlap_mode}")
-
-        # Auto-detect sequential_windows for 14B (avoids OOM when batching)
-        if sequential_windows is None:
-            sequential_windows = getattr(self.model, "dim", 0) >= 5000
-        if sequential_windows and self.rank == 0:
-            logging.info(
-                "[LongVideo] Using sequential window processing (14B / large model)")
 
         # ------------------------------------------------------------------ #
         # 2.  Latent geometry                                                  #
@@ -471,8 +391,7 @@ class WanT2VLong(WanT2V):
             f"overlap_start={overlap_start}px ({overlap_start_lat}lat), "
             f"total_frames={total_frames}, num_windows={num_windows}, "
             f"T_total_lat={T_total_lat}, T_win_lat={T_win_lat}, "
-            f"overlap={overlap_lat}lat ({overlap_lat * self.vae_stride[0]}px), "
-            f"overlap_mode={overlap_mode}"
+            f"overlap={overlap_lat}lat ({overlap_lat * self.vae_stride[0]}px)"
         )
         sys.stdout.flush()  # Force flush for immediate output
         logging.info(f"[LongVideo] window starts (latent): {starts}")
@@ -524,6 +443,22 @@ class WanT2VLong(WanT2V):
             max_steps, device=self.device, shift=shift)
         timesteps = sample_scheduler.timesteps
 
+        # Debug: save aggregated x0 at 4 timestep intervals
+        debug_save_indices = set()
+        if debug_save_tweedie_videos and self.rank == 0:
+            debug_save_indices = {
+                0,
+                max_steps // 4,
+                max_steps // 2,
+                3 * max_steps // 4,
+                max_steps - 1,
+            }
+            debug_save_dir = debug_save_dir or "./debug_tweedie_timesteps"
+            os.makedirs(debug_save_dir, exist_ok=True)
+            logging.info(
+                f"[LongVideo] Debug: will save Tweedie x0 videos at steps "
+                f"{sorted(debug_save_indices)} to {debug_save_dir}")
+
         @contextmanager
         def noop_no_sync():
             yield
@@ -533,10 +468,6 @@ class WanT2VLong(WanT2V):
         # ------------------------------------------------------------------ #
         # 8.  ODE denoising loop (SyncTweedies)                               #
         # ------------------------------------------------------------------ #
-        debug_vp_norm = []
-        debug_vp_temporal = []
-        debug_overlap_cos = []
-
         with amp.autocast(dtype=self.param_dtype), torch.no_grad(), no_sync():
             # Use tqdm with explicit settings for real-time output
             # mininterval=0 ensures immediate updates, file=sys.stderr is tqdm's default
@@ -557,114 +488,71 @@ class WanT2VLong(WanT2V):
                     windows = _extract_windows(video_latent, starts, T_win_lat)
 
                     # ---------------------------------------------------------- #
-                    # B. Get x̂₀ per window via model + Tweedie                   #
+                    # B. Get x̂₀ per window via model + Tweedie (BATCHED)         #
                     #    x̂₀ = x_t - σ · v_pred     (flow matching Tweedie)      #
-                    #    Batched (1.3B) or sequential (14B) to avoid OOM        #
+                    #    Model accepts List[Tensor] and batches internally      #
                     # ---------------------------------------------------------- #
                     self.model.to(self.device)
+                    # Replicate timestep for batch processing: [t] -> [t, t, t, ...]
                     timestep = torch.stack([t] * len(windows))  # [B] shape
 
+                    # Batch forward pass: pass all windows as list, model batches internally
+                    # Context needs to be replicated for each window
+                    # Model expects context to be a list of tensors, same for all windows
+                    vc_batch = self.model(
+                        windows, t=timestep,
+                        context=context, seq_len=seq_len)  # Returns List[Tensor]
+                    vu_batch = self.model(
+                        windows, t=timestep,
+                        context=context_null, seq_len=seq_len)  # Returns List[Tensor]
+
+                    # CFG and Tweedie per window
                     x0_preds = []
-                    vp_preds = []
-                    if sequential_windows:
-                        # Sequential: one window at a time (14B OOM avoidance)
-                        for i, window in enumerate(windows):
-                            ctx_i = [context]
-                            ctx_null_i = [context_null]
-                            t_i = timestep[i : i + 1]
-                            vc_list = self.model(
-                                [window], t=t_i,
-                                context=ctx_i, seq_len=seq_len)
-                            vu_list = self.model(
-                                [window], t=t_i,
-                                context=ctx_null_i, seq_len=seq_len)
-                            vc = vc_list[0]
-                            vu = vu_list[0]
-                            vp = vu + guide_scale * (vc - vu)
-                            vp_preds.append(vp.detach())
-                            x0_preds.append((window - sigma * vp).detach())
-                            del vc_list, vu_list, vc, vu, vp
-                            if offload_model:
-                                torch.cuda.empty_cache()
-                    else:
-                        # Batched: all windows at once (1.3B)
-                        context_batch = [context for _ in range(len(windows))]
-                        context_null_batch = [context_null for _ in range(len(windows))]
-                        vc_batch = self.model(
-                            windows, t=timestep,
-                            context=context_batch, seq_len=seq_len)
-                        vu_batch = self.model(
-                            windows, t=timestep,
-                            context=context_null_batch, seq_len=seq_len)
-                        for i, window in enumerate(windows):
-                            vc = vc_batch[i]
-                            vu = vu_batch[i]
-                            vp = vu + guide_scale * (vc - vu)
-                            vp_preds.append(vp.detach())
-                            x0_preds.append((window - sigma * vp).detach())
-                        del vc_batch, vu_batch
+                    for i, window in enumerate(windows):
+                        vc = vc_batch[i]
+                        vu = vu_batch[i]
+                        vp = vu + guide_scale * (vc - vu)
+                        # Tweedie: x̂₀ = x_t - σ · v_pred
+                        x0_preds.append((window - sigma * vp).detach())
+
+                    del vc_batch, vu_batch
 
                     if offload_model:
                         self.model.cpu()
                         torch.cuda.empty_cache()
 
                     # ---------------------------------------------------------- #
-                    # B'. Debug: collect velocity metrics (CPU, before aggregation) #
+                    # C. Weighted average x̂₀ in overlap regions → x̂₀_full      #
                     # ---------------------------------------------------------- #
-                    if debug_save_velocity_metrics and self.rank == 0:
-                        overlap_lat = T_win_lat - overlap_start_lat
-                        vp_norm_row = []
-                        vp_temporal_rows = []
-                        overlap_cos_row = []
-                        for i, vp in enumerate(vp_preds):
-                            vp_np = vp.cpu().float().numpy()
-                            vp_norm_row.append(np.abs(vp_np).mean())
-                            vp_temporal_rows.append(
-                                np.abs(vp_np).mean(axis=(0, 2, 3))
-                            )
-                            if i + 1 < len(vp_preds):
-                                vp_i_overlap = vp_np[:, overlap_start_lat:, :, :]
-                                vp_i1 = vp_preds[i + 1].cpu().float().numpy()
-                                vp_i1_overlap = vp_i1[:, :overlap_lat, :, :]
-                                a = vp_i_overlap.ravel()
-                                b = vp_i1_overlap.ravel()
-                                cos_sim = np.dot(a, b) / (
-                                    np.linalg.norm(a) * np.linalg.norm(b) + 1e-8
-                                )
-                                overlap_cos_row.append(float(cos_sim))
-                        debug_vp_norm.append(vp_norm_row)
-                        debug_vp_temporal.append(vp_temporal_rows)
-                        debug_overlap_cos.append(overlap_cos_row)
+                    # x0_full = _aggregate_x0_weighted(
+                    x0_full = _aggregate_x0(
+                        x0_preds, starts, T_win_lat,
+                        T_total_lat,
+                        C, H_lat, W_lat,
+                        self.device,
+                        avg_mode=True,
+                    ).to(video_latent.dtype)
+
+                    del x0_preds, windows
 
                     # ---------------------------------------------------------- #
-                    # C. Aggregate x̂₀: 4 modes                                    #
+                    # C'. Debug: save Tweedie x0 decoded to video at 4 intervals  #
                     # ---------------------------------------------------------- #
-                    if overlap_mode == "velocity_interp":
-                        x0_full = _aggregate_x0_weighted_velocity_interp(
-                            vp_preds, windows, starts, T_win_lat,
-                            T_total_lat, overlap_start_lat, sigma,
-                            C, H_lat, W_lat, self.device,
-                        ).to(video_latent.dtype)
-                    elif overlap_mode == "both":
-                        x0_full = _aggregate_x0_both(
-                            x0_preds, vp_preds, windows, starts, T_win_lat,
-                            T_total_lat, overlap_start_lat, sigma,
-                            C, H_lat, W_lat, self.device,
-                        ).to(video_latent.dtype)
-                    elif overlap_mode == "last_write":
-                        x0_full = _aggregate_x0(
-                            x0_preds, starts, T_win_lat, T_total_lat,
-                            C, H_lat, W_lat, self.device, avg_mode=False,
-                        ).to(video_latent.dtype)
-                    else:
-                        x0_full = _aggregate_x0_weighted(
-                            x0_preds, starts, T_win_lat,
-                            T_total_lat, overlap_start_lat,
-                            C, H_lat, W_lat,
-                            self.device,
-                        ).to(video_latent.dtype)
-
-                    del x0_preds, vp_preds, windows
+                    if debug_save_tweedie_videos and self.rank == 0 and step_idx in debug_save_indices:
+                        t_val = t.item() if t.dim() == 0 else t[0].item()
+                        debug_video = self.vae.decode([x0_full])[0]
+                        debug_path = os.path.join(
+                            debug_save_dir,
+                            f"tweedie_step{step_idx:03d}_t{t_val:04d}.mp4")
+                        cache_video(
+                            tensor=debug_video[None],
+                            save_file=debug_path,
+                            fps=self.config.sample_fps,
+                            nrow=1,
+                            normalize=True,
+                            value_range=(-1, 1))
+                        logging.info(f"[LongVideo] Debug: saved {debug_path}")
+                        del debug_video
 
                     # ---------------------------------------------------------- #
                     # D. UniPC ODE step on the full latent using refined x̂₀_full  #
@@ -679,95 +567,6 @@ class WanT2VLong(WanT2V):
                     )[0].squeeze(0)
 
                     del x0_full
-
-            # -------------------------------------------------------------- #
-            # 8b. Debug: save velocity metrics and heatmaps                    #
-            # -------------------------------------------------------------- #
-            if debug_save_velocity_metrics and self.rank == 0 and debug_vp_norm:
-                os.makedirs(debug_save_dir, exist_ok=True)
-                vp_norm_arr = np.array(debug_vp_norm)
-                vp_temporal_arr = np.array(
-                    [np.stack(step) for step in debug_vp_temporal]
-                )
-                overlap_cos_arr = np.array(debug_overlap_cos)
-                np.savez(
-                    os.path.join(debug_save_dir, "velocity_metrics.npz"),
-                    vp_norm=vp_norm_arr,
-                    vp_temporal=vp_temporal_arr,
-                    overlap_cos=overlap_cos_arr,
-                )
-                try:
-                    import matplotlib
-                    matplotlib.use("Agg")
-                    import matplotlib.pyplot as plt
-
-                    S, W = vp_norm_arr.shape
-                    fig, ax = plt.subplots(figsize=(max(6, W * 0.8), 4))
-                    im = ax.imshow(
-                        vp_norm_arr.T,
-                        aspect="auto",
-                        origin="lower",
-                        cmap="viridis",
-                    )
-                    ax.set_xlabel("ODE step")
-                    ax.set_ylabel("Window index")
-                    ax.set_title("Velocity L1 norm (mean |vp|) per window per step")
-                    plt.colorbar(im, ax=ax)
-                    plt.tight_layout()
-                    plt.savefig(
-                        os.path.join(debug_save_dir, "vp_norm_heatmap.png"),
-                        dpi=120,
-                    )
-                    plt.close()
-
-                    vp_temporal_mean = vp_temporal_arr.mean(axis=1)
-                    fig, ax = plt.subplots(figsize=(8, 4))
-                    im = ax.imshow(
-                        vp_temporal_mean.T,
-                        aspect="auto",
-                        origin="lower",
-                        cmap="plasma",
-                    )
-                    ax.set_xlabel("ODE step")
-                    ax.set_ylabel("Temporal position (latent)")
-                    ax.set_title("Velocity L1 norm per temporal position (mean over windows)")
-                    plt.colorbar(im, ax=ax)
-                    plt.tight_layout()
-                    plt.savefig(
-                        os.path.join(debug_save_dir, "vp_temporal_heatmap.png"),
-                        dpi=120,
-                    )
-                    plt.close()
-
-                    if overlap_cos_arr.size > 0:
-                        cos_arr = overlap_cos_arr
-                        fig, ax = plt.subplots(figsize=(max(6, cos_arr.shape[1] * 0.8), 4))
-                        im = ax.imshow(
-                            cos_arr.T,
-                            aspect="auto",
-                            origin="lower",
-                            cmap="RdBu_r",
-                            vmin=-1,
-                            vmax=1,
-                        )
-                        ax.set_xlabel("ODE step")
-                        ax.set_ylabel("Window pair (i, i+1)")
-                        ax.set_title("Overlap cosine similarity between adjacent windows")
-                        plt.colorbar(im, ax=ax)
-                        plt.tight_layout()
-                        plt.savefig(
-                            os.path.join(debug_save_dir, "overlap_cos_heatmap.png"),
-                            dpi=120,
-                        )
-                        plt.close()
-
-                    logging.info(
-                        f"[LongVideo] Velocity metrics saved to {debug_save_dir}"
-                    )
-                except ImportError:
-                    logging.warning(
-                        "[LongVideo] matplotlib not available, skipping heatmaps"
-                    )
 
             # -------------------------------------------------------------- #
             # 9.  VAE decode                                                   #
@@ -801,12 +600,21 @@ class WanT2VLong(WanT2V):
         n_prompt: str = "",
         seed: int = -1,
         offload_model: bool = True,
+        soft_blend: bool = False,
+        cache_x_t: bool = False,
+        velocity_blend: bool = False,
+        blend_method: str = "linear",  # "linear", "rbf", "smoothstep"
+        rbf_gamma: float = 0.1,  # Gamma parameter for RBF kernel (only used when blend_method="rbf")
     ):
         """Generate a long video using Tweedie Caching: sequential window processing with x0 caching.
 
         Processes windows sequentially, reusing cached x0 predictions from previous windows
         for overlapping regions. More efficient than SyncTweedies but processes windows
         sequentially instead of in parallel.
+        
+        Args:
+            cache_x_t: If True, also cache and reuse x_t (latent state) in overlap regions
+                      in addition to x0. This ensures consistent trajectory across windows.
 
         Args:
             input_prompt: Text prompt describing the video content.
@@ -856,12 +664,19 @@ class WanT2VLong(WanT2V):
 
         num_windows = len(starts)
         overlap_lat = T_win_lat - overlap_start_lat
+        cache_mode = "x0+x_t" if cache_x_t else "x0 only"
+        if velocity_blend:
+            if blend_method == "rbf":
+                cache_mode += f"+velocity_blend({blend_method},γ={rbf_gamma})"
+            else:
+                cache_mode += f"+velocity_blend({blend_method})"
         logging.info(
             f"[LongVideo-Cached] window_size={window_size}, multiplier={multiplier}, "
             f"overlap_start={overlap_start}px ({overlap_start_lat}lat), "
             f"total_frames={total_frames}, num_windows={num_windows}, "
             f"T_total_lat={T_total_lat}, T_win_lat={T_win_lat}, "
-            f"overlap={overlap_lat}lat ({overlap_lat * self.vae_stride[0]}px)"
+            f"overlap={overlap_lat}lat ({overlap_lat * self.vae_stride[0]}px), "
+            f"cache_mode={cache_mode}"
         )
         sys.stdout.flush()
         logging.info(f"[LongVideo-Cached] window starts (latent): {starts}")
@@ -908,29 +723,46 @@ class WanT2VLong(WanT2V):
 
         # ------------------------------------------------------------------ #
         # 8.  ODE denoising loop (Tweedie Caching)                            #
-        #     Process windows sequentially: each window independently         #
-        #     Cache structure: x0_cache[t_key][win_idx] = [C, overlap_lat, H, W] tensor
+        #     Process windows sequentially: cache x0 at each timestep        #
         # ------------------------------------------------------------------ #
-        # Cache structure: x0_cache[t_key][win_idx] = cached overlap x0
-        x0_cache = {}  # x0_cache[t_key][win_idx] = cached overlap x0
+        
+        # Cache for storing x0 predictions at each timestep for overlap regions
+        # Structure: {timestep_key: {window_idx: x0_overlap_tensor}}
+        x0_cache = {}
+        
+        # Cache for storing x_t (latent state) at each timestep for overlap regions (if cache_x_t=True)
+        # Structure: {timestep_key: {window_idx: x_t_overlap_tensor}}
+        x_t_cache = {} if cache_x_t else None
+        
+        # Cache for storing velocity (vector field) at each timestep for overlap regions (if velocity_blend=True)
+        # Structure: {timestep_key: {window_idx: velocity_overlap_tensor}}
+        velocity_cache = {} if velocity_blend else None
         
         with amp.autocast(dtype=self.param_dtype), torch.no_grad(), no_sync():
             # Process each window sequentially (OUTER LOOP)
-            for win_idx, start in enumerate(
-                    tqdm(starts, desc="TweedieCaching", file=sys.stderr, mininterval=0, miniters=1)):
+            cache_desc = "x0+x_t" if cache_x_t else "x0"
+            pbar_windows = tqdm(
+                enumerate(starts), 
+                total=len(starts),
+                desc=f"TweedieCaching-{cache_desc} (Windows)", 
+                file=sys.stderr, 
+                mininterval=0, 
+                miniters=1,
+                position=0,
+                leave=True)
+            
+            for win_idx, start in pbar_windows:
                 win_end = start + T_win_lat
                 
-                # Extract this window's latent from full video latent
-                # Each window processes independently
-                window_latent = video_latent[:, start:win_end, :, :].clone()
-                
                 # Create a new scheduler for this window (each window processes independently)
+                # Each window needs its own scheduler with fresh timesteps
                 sample_scheduler = FlowUniPCMultistepScheduler(
                     num_train_timesteps=self.num_train_timesteps,
                     shift=1,
                     use_dynamic_shifting=False)
                 sample_scheduler.set_timesteps(
                     max_steps, device=self.device, shift=shift)
+                timesteps = sample_scheduler.timesteps  # Get fresh timesteps for this window
                 
                 # Determine which part to reuse from cache (for later windows)
                 if win_idx == 0:
@@ -955,31 +787,56 @@ class WanT2VLong(WanT2V):
                         reuse_end_in_window = None
                 
                 # Determine overlap region for caching (what to cache for next window)
-                # This should match what the next window will reuse
                 if win_idx < len(starts) - 1:
                     # There's a next window
                     next_start = starts[win_idx + 1]
                     # The overlap region that next window will reuse
-                    # Next window's reuse region: from max(next_start, start + overlap_start_lat) to min(next_start + T_win_lat, start + T_win_lat)
                     next_overlap_start_global = max(next_start, start + overlap_start_lat)
                     next_overlap_end_global = min(next_start + T_win_lat, start + T_win_lat)
                     
                     if next_overlap_start_global < next_overlap_end_global:
                         # Cache the region that next window will reuse (in current window's local coordinates)
-                        overlap_start_in_window = next_overlap_start_global - start
-                        overlap_end_in_window = next_overlap_end_global - start
+                        cache_overlap_start_in_window = next_overlap_start_global - start
+                        cache_overlap_end_in_window = next_overlap_end_global - start
                     else:
-                        overlap_start_in_window = None
-                        overlap_end_in_window = None
+                        cache_overlap_start_in_window = None
+                        cache_overlap_end_in_window = None
                 else:
-                    overlap_start_in_window = None
-                    overlap_end_in_window = None
+                    cache_overlap_start_in_window = None
+                    cache_overlap_end_in_window = None
+                
+                # Initialize window_latent
+                # For first window: pure noise
+                # For later windows: 
+                #   - If cache_x_t=False: pure noise (original behavior)
+                #   - If cache_x_t=True: start with noise, then replace overlap region with cached x_t at each timestep
+                #     (cached x_t is applied in the timestep loop, not here, because we need x_t at the same timestep)
+                window_latent = torch.randn(
+                    C, T_win_lat, H_lat, W_lat,
+                    dtype=torch.float32,
+                    device=self.device,
+                    generator=seed_g,
+                )
                 
                 # Process all timesteps for this window (INNER LOOP)
-                for step_idx, t in enumerate(timesteps):
-                    # Initialize scheduler step_index if needed
+                pbar_steps = tqdm(
+                    enumerate(timesteps),
+                    total=len(timesteps),
+                    desc=f"  Window {win_idx+1}/{len(starts)} (Steps)",
+                    file=sys.stderr,
+                    mininterval=0,
+                    miniters=1,
+                    position=1,
+                    leave=False)
+                
+                for step_idx, t in pbar_steps:
+                    # Initialize scheduler step_index for this timestep
                     if sample_scheduler.step_index is None:
                         sample_scheduler._init_step_index(t)
+                    else:
+                        current_step_idx = sample_scheduler.index_for_timestep(t)
+                        if sample_scheduler.step_index != current_step_idx:
+                            sample_scheduler._step_index = current_step_idx
                     
                     # Get sigma from scheduler's current step_index
                     sigma = sample_scheduler.sigmas[sample_scheduler.step_index].item()
@@ -987,39 +844,149 @@ class WanT2VLong(WanT2V):
                     # Use t.item() as dict key since tensor is not hashable
                     t_key = t.item() if isinstance(t, torch.Tensor) else t
                     
-                    # Prepare x0 for this window at this timestep
-                    # Always compute entire window first
-                    self.model.to(self.device)
-                    timestep_tensor = torch.stack([t])
+                    # If cache_x_t is enabled and this is not the first window, use cached x_t for overlap region
+                    if cache_x_t and win_idx > 0 and reuse_start_in_window is not None and reuse_end_in_window is not None:
+                        if x_t_cache is not None and t_key in x_t_cache and (win_idx - 1) in x_t_cache[t_key]:
+                            cached_overlap_x_t = x_t_cache[t_key][win_idx - 1]
+                            # Replace overlap region with cached x_t to ensure consistent trajectory
+                            window_latent[:, reuse_start_in_window:reuse_end_in_window, :, :] = cached_overlap_x_t
                     
-                    vc = self.model(
-                        [window_latent], t=timestep_tensor,
-                        context=[context], seq_len=seq_len)[0]
-                    vu = self.model(
-                        [window_latent], t=timestep_tensor,
-                        context=[context_null], seq_len=seq_len)[0]
-                    
-                    vp = vu + guide_scale * (vc - vu)
-                    # Tweedie: x̂₀ = x_t - σ · v_pred
-                    window_x0 = (window_latent - sigma * vp).detach()
-                    
-                    del vc, vu
-                    del vp
-                    
-                    # Reuse cached x0 for overlapping part from previous window
-                    # This is the core of Tweedie Caching: reuse x0 predictions across windows
+                    # For later windows: use cached x0 for overlap region at this timestep
                     if win_idx > 0 and reuse_start_in_window is not None and reuse_end_in_window is not None:
+                        # Get cached x0 for overlap region from previous window at this timestep
                         if t_key in x0_cache and (win_idx - 1) in x0_cache[t_key]:
-                            cached_x0_overlap = x0_cache[t_key][win_idx - 1]
-                            reuse_size = reuse_end_in_window - reuse_start_in_window
-                            cached_size = cached_x0_overlap.shape[1]
-                            actual_size = min(reuse_size, cached_size)
+                            cached_overlap_x0 = x0_cache[t_key][win_idx - 1]
                             
-                            # Replace overlap region with cached x0
-                            window_x0[:, reuse_start_in_window:reuse_start_in_window + actual_size, :, :] = \
-                                cached_x0_overlap[:, :actual_size, :, :]
+                            # Compute velocity for the entire window (including new region)
+                            self.model.to(self.device)
+                            timestep_tensor = torch.stack([t])
+                            
+                            vc = self.model(
+                                [window_latent], t=timestep_tensor,
+                                context=context, seq_len=seq_len)[0]
+                            vu = self.model(
+                                [window_latent], t=timestep_tensor,
+                                context=context_null, seq_len=seq_len)[0]
+                            
+                            vp = vu + guide_scale * (vc - vu)
+                            
+                            # Velocity blending: blend cached velocity with new velocity in overlap region
+                            vp_to_cache = None  # Store velocity for caching
+                            if velocity_blend and velocity_cache is not None and t_key in velocity_cache and (win_idx - 1) in velocity_cache[t_key]:
+                                cached_overlap_velocity = velocity_cache[t_key][win_idx - 1]
+                                overlap_size = reuse_end_in_window - reuse_start_in_window
+                                
+                                # Extract overlap region from new velocity
+                                new_overlap_velocity = vp[:, reuse_start_in_window:reuse_end_in_window, :, :]
+                                
+                                # Blend velocities using vector field properties
+                                blended_overlap_velocity = _blend_velocity(
+                                    cached_overlap_velocity,
+                                    new_overlap_velocity,
+                                    overlap_size,
+                                    method=blend_method,
+                                    device=self.device,
+                                    gamma=rbf_gamma,
+                                )
+                                
+                                # Replace overlap region with blended velocity
+                                vp[:, reuse_start_in_window:reuse_end_in_window, :, :] = blended_overlap_velocity
+                                
+                                # Store blended velocity for caching
+                                vp_to_cache = vp.clone()
+                                
+                                # Recompute x0 using blended velocity
+                                window_x0 = (window_latent - sigma * vp).detach()
+                                
+                                # For consistency, also blend x0 (optional, can use blended velocity result directly)
+                                # This ensures both velocity field and x0 are consistent
+                                cached_x0_overlap = cached_overlap_x0
+                                new_x0_overlap = window_x0[:, reuse_start_in_window:reuse_end_in_window, :, :]
+                                blended_x0_overlap = _blend_velocity(
+                                    cached_x0_overlap,
+                                    new_x0_overlap,
+                                    overlap_size,
+                                    method=blend_method,
+                                    device=self.device,
+                                    gamma=rbf_gamma,
+                                )
+                                window_x0[:, reuse_start_in_window:reuse_end_in_window, :, :] = blended_x0_overlap
+                            else:
+                                # Original behavior: hard replace with cached x0
+                                window_x0 = (window_latent - sigma * vp).detach()
+                                window_x0[:, reuse_start_in_window:reuse_end_in_window, :, :] = cached_overlap_x0
+                                # Store velocity for caching (if velocity_blend is enabled)
+                                if velocity_blend:
+                                    vp_to_cache = vp.clone()
+                            
+                            del vc, vu, vp
+                        else:
+                            # Fallback: compute entire window if cache not available
+                            self.model.to(self.device)
+                            timestep_tensor = torch.stack([t])
+                            
+                            vc = self.model(
+                                [window_latent], t=timestep_tensor,
+                                context=context, seq_len=seq_len)[0]
+                            vu = self.model(
+                                [window_latent], t=timestep_tensor,
+                                context=context_null, seq_len=seq_len)[0]
+                            
+                            vp = vu + guide_scale * (vc - vu)
+                            window_x0 = (window_latent - sigma * vp).detach()
+                            
+                            # Store velocity for caching (if velocity_blend is enabled)
+                            vp_to_cache = vp.clone() if velocity_blend else None
+                            
+                            del vc, vu, vp
+                    else:
+                        # First window: compute entire window normally
+                        self.model.to(self.device)
+                        timestep_tensor = torch.stack([t])
+                        
+                        vc = self.model(
+                            [window_latent], t=timestep_tensor,
+                            context=context, seq_len=seq_len)[0]
+                        vu = self.model(
+                            [window_latent], t=timestep_tensor,
+                            context=context_null, seq_len=seq_len)[0]
+                        
+                        vp = vu + guide_scale * (vc - vu)
+                        window_x0 = (window_latent - sigma * vp).detach()
+                        
+                        # Store velocity for caching (if velocity_blend is enabled)
+                        vp_to_cache = vp.clone() if velocity_blend else None
+                        
+                        del vc, vu, vp
                     
-                    # UniPC ODE step on this window's latent
+                    # Cache x0 for overlap region (for next window to reuse)
+                    if cache_overlap_start_in_window is not None and cache_overlap_end_in_window is not None:
+                        if t_key not in x0_cache:
+                            x0_cache[t_key] = {}
+                        x0_cache[t_key][win_idx] = window_x0[:, cache_overlap_start_in_window:cache_overlap_end_in_window, :, :].clone()
+                    
+                    # Cache velocity for overlap region (for next window to blend)
+                    if velocity_blend and cache_overlap_start_in_window is not None and cache_overlap_end_in_window is not None:
+                        if velocity_cache is not None:
+                            if t_key not in velocity_cache:
+                                velocity_cache[t_key] = {}
+                            
+                            # Get velocity to cache (either blended or original)
+                            if vp_to_cache is not None:
+                                velocity_to_cache = vp_to_cache[:, cache_overlap_start_in_window:cache_overlap_end_in_window, :, :]
+                            else:
+                                # Fallback: recompute (shouldn't happen, but safety check)
+                                self.model.to(self.device)
+                                timestep_tensor = torch.stack([t])
+                                vc_temp = self.model([window_latent], t=timestep_tensor, context=context, seq_len=seq_len)[0]
+                                vu_temp = self.model([window_latent], t=timestep_tensor, context=context_null, seq_len=seq_len)[0]
+                                vp_temp = vu_temp + guide_scale * (vc_temp - vu_temp)
+                                velocity_to_cache = vp_temp[:, cache_overlap_start_in_window:cache_overlap_end_in_window, :, :]
+                                del vc_temp, vu_temp, vp_temp
+                            
+                            velocity_cache[t_key][win_idx] = velocity_to_cache.clone()
+                    
+                    # UniPC ODE step on this window's latent using unified x0
                     window_latent = sample_scheduler.step_with_refined_x0(
                         window_x0.unsqueeze(0),
                         t,
@@ -1028,28 +995,50 @@ class WanT2VLong(WanT2V):
                         generator=seed_g,
                     )[0].squeeze(0)
                     
-                    # Cache overlapping region x0 for next window (if there is a next window)
-                    if win_idx < len(starts) - 1 and overlap_start_in_window is not None and overlap_end_in_window is not None:
-                        if overlap_start_in_window < overlap_end_in_window:
-                            if t_key not in x0_cache:
-                                x0_cache[t_key] = {}
-                            # Store the overlapping part x0 in cache for next window to reuse
-                            x0_cache[t_key][win_idx] = window_x0[:, overlap_start_in_window:overlap_end_in_window, :, :].clone()
+                    # Cache x_t for overlap region (for next window to reuse at the same timestep)
+                    if cache_x_t and cache_overlap_start_in_window is not None and cache_overlap_end_in_window is not None:
+                        if x_t_cache is not None:
+                            if t_key not in x_t_cache:
+                                x_t_cache[t_key] = {}
+                            x_t_cache[t_key][win_idx] = window_latent[:, cache_overlap_start_in_window:cache_overlap_end_in_window, :, :].clone()
                     
                     del window_x0
                     
                     if offload_model:
                         self.model.cpu()
                         torch.cuda.empty_cache()
-                    
-                    # Clean up old cache entries to save memory
-                    if t_key in x0_cache and len(x0_cache[t_key]) > len(starts):
-                        # Remove oldest window cache entries
-                        oldest_win = min(x0_cache[t_key].keys())
-                        del x0_cache[t_key][oldest_win]
                 
                 # Write completed window back to full video latent
                 video_latent[:, start:win_end, :, :] = window_latent
+                
+                # Debug: Save each window's denoising result as a separate video
+                if self.rank == 0:
+                    try:
+                        import os
+                        from wan.utils.utils import cache_video
+                        
+                        # Decode this window's latent to video
+                        window_video = self.vae.decode([window_latent])[0]
+                        
+                        # Save to debug_windows directory in current working directory
+                        debug_dir = os.path.join(os.getcwd(), "debug_windows")
+                        os.makedirs(debug_dir, exist_ok=True)
+                        
+                        # Save window video using cache_video (same format as main video)
+                        window_filename = f"window_{win_idx}.mp4"
+                        window_path = os.path.join(debug_dir, window_filename)
+                        cache_video(
+                            tensor=window_video[None],
+                            save_file=window_path,
+                            fps=self.config.sample_fps,
+                            nrow=1,
+                            normalize=True,
+                            value_range=(-1, 1)
+                        )
+                        logging.info(f"[Debug] Saved window {win_idx} video to {window_path}")
+                        del window_video
+                    except Exception as e:
+                        logging.warning(f"[Debug] Failed to save window {win_idx} video: {e}")
                 
                 del window_latent
 
@@ -1063,7 +1052,7 @@ class WanT2VLong(WanT2V):
             else:
                 video = None
 
-        del video_latent, sample_scheduler, x0_cache
+        del video_latent, sample_scheduler
         if offload_model:
             gc.collect()
             torch.cuda.synchronize()
